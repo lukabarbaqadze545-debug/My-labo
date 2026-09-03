@@ -1,0 +1,217 @@
+/*
+ * The personal-lab pages: notes journal, question list, and saved items.
+ * Tokens only — themes with the rest of the app.
+ */
+
+.input--sm {
+  padding: 0.4rem 0.6rem;
+  font-size: var(--text-xs);
+}
+
+/* ------------------------------- composer -------------------------------- */
+
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  margin-bottom: var(--space-5);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.composer__row {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.composer__row > .input {
+  flex: 1;
+  min-width: 140px;
+}
+
+.composer__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* ------------------------------- filter bar ------------------------------ */
+
+.filterbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chipbtn {
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.chipbtn:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.chipbtn.is-active {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+/* ------------------------------- note cards ----------------------------- */
+
+.note-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.note-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.note-card__title {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.note-card__body {
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+  color: var(--ink-2);
+  white-space: pre-wrap;
+}
+
+.note-card__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.tag {
+  font-size: var(--text-xs);
+  color: var(--ink-4);
+}
+
+/* ----------------------------- question cards -------------------------- */
+
+.q-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.q-card.is-answered {
+  border-color: var(--line-faint);
+  background: var(--surface-2);
+}
+
+.q-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.q-card__text {
+  flex: 1;
+  font-size: var(--text-md);
+  color: var(--ink);
+}
+
+.q-card.is-answered .q-card__text {
+  color: var(--ink-3);
+}
+
+.q-card__answer {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--accent-line);
+}
+
+.seed-q {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: var(--text-sm);
+}
+
+/* ------------------------------- saved rows ---------------------------- */
+
+.saved-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0.6rem var(--space-4);
+  border: 1px solid var(--line-faint);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.saved-row__link {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex: 1;
+  min-width: 0;
+  color: var(--ink);
+}
+
+.saved-row__link:hover .saved-row__label {
+  color: var(--accent-ink);
+}
+
+.saved-row__kind {
+  flex: none;
+  font-size: var(--text-xs);
+  color: var(--ink-4);
+}
+
+.saved-row__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------------------------- formulas + bookmark ---------------------- */
+
+.formula-wrap {
+  position: relative;
+}
+
+.formula-wrap__bm {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+}

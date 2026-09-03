@@ -1,0 +1,423 @@
+/*
+ * Focus room — pomodoro timer, mini timer, and the analytics dashboard.
+ * All colour comes from existing tokens so it themes with the rest of the app.
+ */
+
+/* -------------------------- shared button variants -------------------------- */
+
+.btn--sm {
+  padding: 0.35rem 0.7rem;
+  font-size: var(--text-xs);
+}
+
+.btn--wide {
+  min-width: 180px;
+}
+
+.btn--active {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+/* ------------------------------- mini timer ------------------------------- */
+
+.minitimer {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--accent-line);
+  background: var(--accent-soft);
+}
+
+.minitimer--break {
+  border-color: color-mix(in srgb, var(--success) 40%, transparent);
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+}
+
+.minitimer__face {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.6rem 0.2rem 0.2rem;
+  border-radius: var(--radius-full);
+  color: var(--ink);
+}
+
+.minitimer__ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) calc(var(--p, 0) * 1%), var(--line-faint) 0);
+}
+
+.minitimer--break .minitimer__ring {
+  background: conic-gradient(var(--success) calc(var(--p, 0) * 1%), var(--line-faint) 0);
+}
+
+.minitimer__glyph {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface);
+  font-size: 0.7rem;
+}
+
+.minitimer__time {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.minitimer__btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: var(--ink-2);
+  font-size: 0.7rem;
+}
+
+.minitimer__btn:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+/* ------------------------------- timer tab ------------------------------- */
+
+.focus-timer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
+  gap: var(--space-6);
+  align-items: start;
+  margin-top: var(--space-5);
+}
+
+.focus-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-6) var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.ring__inner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  text-align: center;
+  padding: 0 12%;
+}
+
+.focus-stage__phase {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  letter-spacing: 0.02em;
+}
+
+.focus-stage__clock {
+  font-family: var(--font-mono);
+  font-size: clamp(2.6rem, 1.8rem + 4vw, 3.6rem);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  line-height: 1;
+}
+
+.focus-stage__status {
+  font-size: var(--text-xs);
+  color: var(--ink-4);
+  max-width: 22ch;
+}
+
+.focus-cycle {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.focus-cycle__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+}
+
+.focus-cycle__dot.is-done {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.focus-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: center;
+}
+
+.focus-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.focus-today {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+/* --------------------------------- meter --------------------------------- */
+
+.meter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.meter__track {
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--line-faint);
+  overflow: hidden;
+}
+
+.meter__fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width var(--dur-base) var(--ease-out);
+}
+
+.meter__label {
+  font-size: var(--text-xs);
+  color: var(--ink-4);
+}
+
+/* ------------------------------ stats tab ------------------------------ */
+
+.focus-stats {
+  margin-top: var(--space-5);
+}
+
+.focus-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
+}
+
+.focus-tiles--sm {
+  grid-template-columns: repeat(2, 1fr);
+  margin-top: var(--space-4);
+}
+
+.focus-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.focus-tile__value {
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  color: var(--ink);
+}
+
+.focus-tile__label {
+  font-size: var(--text-xs);
+  color: var(--ink-4);
+}
+
+/* -------------------------------- charts -------------------------------- */
+
+.pchart {
+  position: relative;
+  border: 1px solid var(--line-faint);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  background: var(--surface);
+}
+
+.pchart svg {
+  display: block;
+}
+
+.pchart rect {
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.pchart rect:hover {
+  opacity: 1;
+}
+
+.pchart__tip {
+  position: absolute;
+  transform: translate(-50%, -130%);
+  padding: 0.3rem 0.55rem;
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  color: var(--bg);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: var(--shadow-md);
+}
+
+.hbars {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.hbar {
+  display: grid;
+  grid-template-columns: minmax(90px, 30%) 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.hbar__label {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hbar__track {
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: var(--line-faint);
+  overflow: hidden;
+}
+
+.hbar__fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+}
+
+.hbar__value {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------- session list ---------------------------- */
+
+.sessionlist {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--line-faint);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.sessionlist__row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0.6rem var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.sessionlist__row:nth-child(odd) {
+  background: var(--surface-2);
+}
+
+.sessionlist__time {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+}
+
+.sessionlist__label {
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sessionlist__dur {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+/* ----------------------------- settings tab ----------------------------- */
+
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 460px;
+}
+
+.field--row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--line-faint);
+}
+
+.field--row .field__label {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.input--num {
+  width: 84px;
+  text-align: center;
+}
+
+.field--row input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+/* ------------------------------- responsive ------------------------------- */
+
+@media (max-width: 860px) {
+  .focus-timer {
+    grid-template-columns: 1fr;
+  }
+  .focus-tiles {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
