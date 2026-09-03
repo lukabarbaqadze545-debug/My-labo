@@ -8,6 +8,7 @@ import { PwaPrompt } from './PwaPrompt';
 
 const PRIMARY = [
   { to: '/', glyph: '◎', key: 'home' as const, end: true },
+  { to: '/ask', glyph: '✦', key: 'ask' as const },
   { to: '/labs', glyph: '⬡', key: 'labs' as const },
   { to: '/research', glyph: '✷', key: 'research' as const },
   { to: '/formulas', glyph: '∑', key: 'formulas' as const },
@@ -25,10 +26,10 @@ const PERSONAL = [
 
 const MOBILE = [
   { to: '/', glyph: '◎', key: 'home' as const, end: true },
+  { to: '/ask', glyph: '✦', key: 'ask' as const },
   { to: '/labs', glyph: '⬡', key: 'labs' as const },
   { to: '/focus', glyph: '◷', key: 'focus' as const },
   { to: '/write', glyph: '✍', key: 'write' as const },
-  { to: '/saved', glyph: '⌘', key: 'saved' as const },
 ];
 
 export function Shell({ children }: { children: ReactNode }) {

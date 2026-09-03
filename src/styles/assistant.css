@@ -1,0 +1,251 @@
+/*
+ * The library assistant — a chat surface over the retrieval engine.
+ * The "feels like a chatbot" cues (thinking dots, typewriter caret) live here.
+ */
+
+.ask-page {
+  max-width: 780px;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 220px);
+}
+
+.ask-thread {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4) 2px var(--space-6);
+}
+
+/* ------------------------------ empty state ---------------------------- */
+
+.ask-empty {
+  margin: auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-4);
+}
+
+.ask-empty__glyph {
+  font-size: 2rem;
+  color: var(--accent);
+}
+
+.ask-empty__title {
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ask-empty__hint {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  max-width: 44ch;
+}
+
+.ask-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: center;
+  margin-top: var(--space-3);
+}
+
+.ask-chip {
+  display: inline-block;
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  text-align: start;
+  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.ask-chip:hover {
+  border-color: var(--accent-line);
+  color: var(--accent-ink);
+}
+
+.ask-chip--sm {
+  padding: 0.28rem 0.6rem;
+  font-size: var(--text-xs);
+}
+
+/* -------------------------------- messages ---------------------------- */
+
+.ask-msg {
+  display: flex;
+  gap: var(--space-3);
+  animation: ask-rise var(--dur-base) var(--ease-out);
+}
+
+@keyframes ask-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.ask-msg--user {
+  justify-content: flex-end;
+}
+
+.ask-avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(150deg, hsl(var(--accent-h) 72% 56%), hsl(calc(var(--accent-h) + 40) 68% 48%));
+  color: #fff;
+  font-size: 0.8rem;
+  margin-top: 2px;
+}
+
+.ask-bubble {
+  max-width: 82%;
+  padding: 0.7rem 0.95rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: var(--text-base);
+  line-height: var(--leading-body);
+  color: var(--ink);
+}
+
+.ask-bubble--user {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--ink);
+  border-bottom-right-radius: var(--radius-sm);
+}
+
+.ask-msg--bot .ask-bubble {
+  border-bottom-left-radius: var(--radius-sm);
+}
+
+.ask-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ask-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: -0.15em;
+  background: var(--accent);
+  animation: ask-blink 1s steps(1) infinite;
+}
+
+@keyframes ask-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.ask-dots {
+  display: inline-flex;
+  gap: 4px;
+  padding: 0.2rem 0;
+}
+
+.ask-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink-4);
+  animation: ask-pulse 1.2s var(--ease-in-out) infinite;
+}
+
+.ask-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.ask-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes ask-pulse {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+/* -------------------------------- extras ------------------------------ */
+
+.ask-extras {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line-faint);
+}
+
+.ask-extras__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ask-extras__label {
+  font-size: var(--text-xs);
+  color: var(--ink-4);
+}
+
+.ask-source {
+  font-size: var(--text-xs);
+  color: var(--accent-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* --------------------------------- input ----------------------------- */
+
+.ask-input {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+  padding: var(--space-3) 0;
+  background: linear-gradient(to top, var(--bg) 70%, transparent);
+}
+
+.ask-input .textarea {
+  min-height: 44px;
+  max-height: 160px;
+  resize: none;
+}
+
+.ask-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+}
+
+@media (max-width: 640px) {
+  .ask-bubble {
+    max-width: 88%;
+  }
+}
