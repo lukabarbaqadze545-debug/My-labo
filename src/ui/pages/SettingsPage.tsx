@@ -1,5 +1,6 @@
 import { useApp, useT } from '../state/AppState';
 import { SectionHead } from '../components/primitives';
+import { AiSettings } from '../components/AiSettings';
 
 /** Appearance and language now; data export/import lands with persistence UI. */
 export function SettingsPage() {
@@ -51,6 +52,11 @@ export function SettingsPage() {
             </button>
           ))}
         </div>
+      </section>
+
+      <section className="section">
+        <SectionHead title={t.ai.title} subtitle={t.ai.subtitle} />
+        <AiSettings />
       </section>
 
       <section className="section">

@@ -3,6 +3,8 @@ import {
   newId,
   DEFAULT_PREFERENCES,
   DEFAULT_POMODORO_SETTINGS,
+  DEFAULT_AI_SETTINGS,
+  type AiSettings,
   type ActivityProgress,
   type Bookmark,
   type InteractionRecord,
@@ -299,6 +301,26 @@ export async function clearPomodoroSessions(): Promise<void> {
   await db.pomodoroSessions.clear();
 }
 
+/* ----------------------------------- ai ---------------------------------- */
+
+export async function getAiSettings(): Promise<AiSettings> {
+  try {
+    const stored = await db.aiSettings.get('main');
+    return { ...DEFAULT_AI_SETTINGS, ...stored, key: 'main' };
+  } catch {
+    return DEFAULT_AI_SETTINGS;
+  }
+}
+
+export async function saveAiSettings(
+  patch: Partial<Omit<AiSettings, 'key' | 'updatedAt'>>,
+): Promise<AiSettings> {
+  const current = await getAiSettings();
+  const next: AiSettings = { ...current, ...patch, key: 'main', updatedAt: Date.now() };
+  await db.aiSettings.put(next);
+  return next;
+}
+
 /* -------------------------------- documents ------------------------------- */
 
 export async function listDocuments(): Promise<UserDocument[]> {
@@ -393,10 +415,13 @@ export async function exportAllData(): Promise<string> {
       getPomodoroSettings(),
     ]);
   const documents = await db.documents.toArray();
+  const ai = await getAiSettings();
   return JSON.stringify(
     {
-      version: 3,
+      version: 4,
       exportedAt: new Date().toISOString(),
+      // The API key is deliberately omitted — an export is often shared.
+      ai: { enabled: ai.enabled, model: ai.model },
       notes,
       bookmarks,
       questions,

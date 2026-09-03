@@ -1,0 +1,1 @@
+import{a as e}from"./error-CJ3RHG07.js";function t(t){return new Proxy({},{get(n,r){if(typeof r!=`symbol`)throw new e(`\`${t}.${r}\` is not available in this environment; it needs a Node.js-compatible runtime`)}})}t(`child_process`),t(`crypto`);var n=t(`fs`);t(`os`);var r=t(`path`);t(`stream`),t(`util`);export{n as fs,r as path};

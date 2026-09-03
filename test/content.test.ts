@@ -6,6 +6,26 @@ describe('content library', () => {
     expect(findBrokenReferences()).toEqual([]);
   });
 
+  it('has no duplicate entity ids within any collection', () => {
+    const collections: Record<string, { id: string }[]> = {
+      topics: library.topics,
+      formulas: library.formulas,
+      facts: library.facts,
+      people: library.people,
+      events: library.events,
+      activities: library.activities,
+      questions: library.questions,
+      subjects: library.subjects,
+    };
+    for (const [name, list] of Object.entries(collections)) {
+      const seen = new Set<string>();
+      for (const item of list) {
+        expect(seen.has(item.id), `duplicate ${name} id: ${item.id}`).toBe(false);
+        seen.add(item.id);
+      }
+    }
+  });
+
   it('covers every MVP subject with real topics', () => {
     const required = ['math', 'physics', 'chemistry', 'biology', 'history', 'astronomy', 'cs'];
     for (const id of required) {

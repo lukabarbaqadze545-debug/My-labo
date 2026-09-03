@@ -455,6 +455,27 @@ function fallback(seed: number): Answer {
 
 /* ------------------------------ entrypoint ---------------------------- */
 
+/**
+ * Retrieval context for the optional LLM path: the top matching library
+ * passages, formatted for a system prompt, plus the refs they came from so the
+ * UI can still show "Sources" even though the model's prose is free-form.
+ */
+export function buildGrounding(query: string): { context: string; sources: AnswerRef[] } {
+  const terms = contentTerms(tokenize(query));
+  if (terms.length === 0) return { context: '', sources: [] };
+  const hits = retrieve(terms, index()).slice(0, 4).filter((h) => h.score >= 2);
+  if (hits.length === 0) return { context: '', sources: [] };
+
+  const blocks: string[] = [];
+  const sources: AnswerRef[] = [];
+  for (const hit of hits) {
+    const composed = answerForDoc(hit.doc, [], 0);
+    blocks.push(`### ${hit.doc.title}\n${composed.text}`);
+    if (composed.sources[0]) sources.push(composed.sources[0]);
+  }
+  return { context: blocks.join('\n\n'), sources };
+}
+
 export function ask(query: string): Answer {
   const raw = query.trim();
   if (!raw) return fallback(0);

@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.123.0",
     "@tiptap/extension-image": "^3.31.2",
     "@tiptap/extension-table": "^3.31.2",
     "@tiptap/extension-table-cell": "^3.31.2",

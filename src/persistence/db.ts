@@ -177,6 +177,32 @@ export const DEFAULT_POMODORO_SETTINGS: PomodoroSettings = {
   updatedAt: 0,
 };
 
+/* ---------------------------------- ai ---------------------------------- */
+
+export const AI_MODELS = ['claude-opus-5', 'claude-sonnet-5', 'claude-haiku-4-5'] as const;
+export type AiModel = (typeof AI_MODELS)[number];
+
+/**
+ * Optional "bring your own key" AI. The key is stored only in this browser's
+ * IndexedDB and used to call Anthropic directly from the page — nothing passes
+ * through any server of ours. Off by default; the library assistant works
+ * fully without it.
+ */
+export interface AiSettings {
+  key: 'main';
+  enabled: boolean;
+  apiKey?: string;
+  model: AiModel;
+  updatedAt: number;
+}
+
+export const DEFAULT_AI_SETTINGS: AiSettings = {
+  key: 'main',
+  enabled: false,
+  model: 'claude-opus-5',
+  updatedAt: 0,
+};
+
 export class LaboDatabase extends Dexie {
   notes!: Table<UserNote, string>;
   bookmarks!: Table<Bookmark, string>;
@@ -190,6 +216,7 @@ export class LaboDatabase extends Dexie {
   pomodoroSessions!: Table<PomodoroSession, string>;
   pomodoroSettings!: Table<PomodoroSettings, string>;
   documents!: Table<UserDocument, string>;
+  aiSettings!: Table<AiSettings, string>;
 
   constructor() {
     super('lukas-labo');
@@ -230,6 +257,21 @@ export class LaboDatabase extends Dexie {
       pomodoroSessions: 'id, startedAt, dateKey, subjectId',
       pomodoroSettings: 'key',
       documents: 'id, updatedAt, subjectId, trashedAt',
+    });
+    this.version(4).stores({
+      notes: 'id, kind, topicId, subjectId, createdAt, updatedAt',
+      bookmarks: 'id, entityId, entityKind, subjectId, createdAt',
+      questions: 'id, subjectId, createdAt, answeredAt',
+      interactions: '++id, subjectId, topicId, type, at',
+      activityProgress: 'activityId, completedAt, updatedAt',
+      preferences: 'key',
+      userSubjects: 'id, group, createdAt',
+      subjectOverrides: 'subjectId',
+      userTopics: 'id, subjectId, createdAt',
+      pomodoroSessions: 'id, startedAt, dateKey, subjectId',
+      pomodoroSettings: 'key',
+      documents: 'id, updatedAt, subjectId, trashedAt',
+      aiSettings: 'key',
     });
   }
 }

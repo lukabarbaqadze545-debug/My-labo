@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef } from 'react';
-import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
 import { CharacterCount, Placeholder } from '@tiptap/extensions';
@@ -9,6 +9,9 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import { TableKit } from '@tiptap/extension-table';
 import Typography from '@tiptap/extension-typography';
+import { AiError, streamChat } from '@/lib/claude';
+import { useT } from '../../state/AppState';
+import { errorText, useAiSettings } from '../../components/AiSettings';
 
 export interface EditorHandle {
   json: unknown;
@@ -55,6 +58,86 @@ function Btn({
     >
       {children}
     </button>
+  );
+}
+
+type AiAction = 'continueWriting' | 'rewrite' | 'shorten' | 'simplify' | 'fixGrammar';
+
+const AI_PROMPT: Record<AiAction, string> = {
+  continueWriting:
+    'გააგრძელე ეს ტექსტი ბუნებრივად, იმავე ენასა და სტილში. დაწერე მხოლოდ გაგრძელება (2–4 წინადადება), ყოველგვარი ახსნის გარეშე.',
+  rewrite:
+    'გადააკეთე ტექსტი უფრო ნათლად და გამართულად. შეინარჩუნე აზრი და ენა. დააბრუნე მხოლოდ გადაკეთებული ტექსტი.',
+  shorten: 'შეამოკლე ტექსტი, შეინარჩუნე მთავარი აზრი. დააბრუნე მხოლოდ შემოკლებული ვერსია.',
+  simplify:
+    'ახსენი იგივე უფრო მარტივი სიტყვებით, თითქოს 12 წლის მოზარდს ესაუბრები. დააბრუნე მხოლოდ ტექსტი.',
+  fixGrammar:
+    'გაასწორე მართლწერა და გრამატიკა. აზრი და სტილი არ შეცვალო. დააბრუნე მხოლოდ გასწორებული ტექსტი.',
+};
+
+function AiToolbar({ editor }: { editor: Editor }) {
+  const t = useT();
+  const ai = useAiSettings();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  if (!(ai.enabled && ai.apiKey)) return null;
+
+  const run = async (action: AiAction) => {
+    setOpen(false);
+    setErr('');
+    const { from, to, empty } = editor.state.selection;
+    const isContinue = action === 'continueWriting';
+    const source = isContinue
+      ? editor.state.doc.textBetween(Math.max(0, from - 1600), from, '\n\n')
+      : editor.state.doc.textBetween(from, to, '\n\n');
+    if (!source.trim() || (!isContinue && empty)) return;
+
+    setBusy(true);
+    // For replace actions, drop the selection first; then stream text in at the
+    // cursor for every action — the cursor advances with each insert.
+    if (!isContinue) editor.chain().focus().deleteSelection().run();
+    if (isContinue) editor.chain().focus().insertContent(' ').run();
+    try {
+      await streamChat(ai, {
+        system: `შენ ხარ სასწავლო აპლიკაცია „ლაბოს" წერის დამხმარე. ${AI_PROMPT[action]}`,
+        messages: [{ role: 'user', content: source }],
+        maxTokens: 1024,
+        onText: (delta) => {
+          editor.chain().focus().insertContent(delta).run();
+        },
+      });
+    } catch (e) {
+      setErr(e instanceof AiError ? errorText(e.kind, t) : t.ai.errUnknown);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="etb__group etb__ai">
+      <button
+        type="button"
+        className={`etb__btn${busy ? ' is-active' : ''}`}
+        onClick={() => setOpen((v) => !v)}
+        disabled={busy}
+        title={t.ai.edit}
+      >
+        {busy ? '…' : '✦'}
+      </button>
+      {open ? (
+        <div className="popmenu">
+          {(['continueWriting', 'rewrite', 'shorten', 'simplify', 'fixGrammar'] as AiAction[]).map((a) => (
+            <button key={a} type="button" onClick={() => void run(a)}>
+              {t.ai[a]}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {busy ? <span className="etb__ai-status">{t.ai.generating}</span> : null}
+      {err ? <span className="etb__ai-status etb__ai-status--err">{err}</span> : null}
+    </div>
   );
 }
 
@@ -286,6 +369,8 @@ export function DocumentEditor({
             ⌫
           </Btn>
         </div>
+
+        <AiToolbar editor={editor} />
       </div>
 
       <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickImage} />
