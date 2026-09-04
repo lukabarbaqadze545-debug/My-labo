@@ -26,6 +26,7 @@ import { PHYSICS_TOPICS } from './topics/physics';
 import { CHEMISTRY_TOPICS } from './topics/chemistry';
 import { BIOLOGY_TOPICS } from './topics/biology';
 import { MATH_TOPICS } from './topics/math';
+import { PROBABILITY_TOPICS } from './topics/probability';
 import { CS_TOPICS } from './topics/cs';
 import { PROGRAMMING_TOPICS } from './topics/programming';
 import { ALGORITHMS_TOPICS } from './topics/algorithms';
@@ -45,6 +46,7 @@ const TOPICS: Topic[] = [
   ...CHEMISTRY_TOPICS,
   ...BIOLOGY_TOPICS,
   ...MATH_TOPICS,
+  ...PROBABILITY_TOPICS,
   ...CS_TOPICS,
   ...PROGRAMMING_TOPICS,
   ...ALGORITHMS_TOPICS,

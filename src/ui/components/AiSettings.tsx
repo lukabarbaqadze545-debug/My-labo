@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, AI_MODELS, DEFAULT_AI_SETTINGS, type AiModel } from '@/persistence/db';
-import { saveAiSettings } from '@/persistence/repositories';
+import {
+  saveAiSettings,
+  addMemory,
+  deleteMemory,
+  clearMemories,
+} from '@/persistence/repositories';
 import { AiError, testKey } from '@/lib/claude';
 import { useT } from '../state/AppState';
 
@@ -136,6 +141,90 @@ export function AiSettings() {
       <p className="xsmall muted" style={{ maxWidth: '52ch' }}>
         {t.ai.privacy}
       </p>
+
+      <MemoryPanel />
+    </div>
+  );
+}
+
+function MemoryPanel() {
+  const t = useT();
+  const settings = useAiSettings();
+  const memories = useLiveQuery(() => db.aiMemories.orderBy('createdAt').toArray(), []) ?? [];
+  const [draft, setDraft] = useState('');
+
+  const submit = async () => {
+    const added = await addMemory(draft, 'manual');
+    if (added) setDraft('');
+  };
+
+  return (
+    <div className="ai-memory">
+      <div className="field field--row">
+        <span className="field__label">{t.ai.memoryTitle}</span>
+        <label className="row" style={{ gap: 'var(--space-1)' }}>
+          <input
+            type="checkbox"
+            checked={settings.memory}
+            onChange={(e) => void saveAiSettings({ memory: e.target.checked })}
+          />
+          <span className="xsmall muted">{t.ai.memoryToggle}</span>
+        </label>
+      </div>
+      <span className="xsmall muted">{t.ai.memoryHint}</span>
+
+      <div className="ai-key" style={{ marginTop: 'var(--space-2)' }}>
+        <input
+          className="input"
+          placeholder={t.ai.memoryAddPlaceholder}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              void submit();
+            }
+          }}
+        />
+        <button
+          className="btn btn--ghost btn--sm"
+          type="button"
+          disabled={draft.trim().length < 4}
+          onClick={() => void submit()}
+        >
+          {t.ai.memoryAdd}
+        </button>
+      </div>
+
+      {memories.length === 0 ? (
+        <p className="xsmall muted">{t.ai.memoryEmpty}</p>
+      ) : (
+        <ul className="ai-memory__list">
+          {memories.map((m) => (
+            <li key={m.id} className="ai-memory__item">
+              <span>{m.text}</span>
+              <button
+                className="btn btn--quiet btn--sm"
+                type="button"
+                aria-label={t.common.delete}
+                onClick={() => void deleteMemory(m.id)}
+              >
+                ✕
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {memories.length > 0 ? (
+        <button
+          className="btn btn--quiet btn--sm popmenu__danger"
+          type="button"
+          onClick={() => void clearMemories()}
+        >
+          {t.ai.memoryClear}
+        </button>
+      ) : null}
     </div>
   );
 }

@@ -5,6 +5,9 @@ import {
   DEFAULT_POMODORO_SETTINGS,
   DEFAULT_AI_SETTINGS,
   type AiSettings,
+  type AiThread,
+  type AiMessage,
+  type AiMemory,
   type ActivityProgress,
   type Bookmark,
   type InteractionRecord,
@@ -319,6 +322,82 @@ export async function saveAiSettings(
   const next: AiSettings = { ...current, ...patch, key: 'main', updatedAt: Date.now() };
   await db.aiSettings.put(next);
   return next;
+}
+
+/* ------------------------------ ai threads ------------------------------- */
+
+export async function listThreads(): Promise<AiThread[]> {
+  try {
+    const all = await db.aiThreads.orderBy('updatedAt').reverse().toArray();
+    return all.sort((a, b) => Number(b.pinned ?? 0) - Number(a.pinned ?? 0));
+  } catch {
+    return [];
+  }
+}
+
+export async function getThread(id: string): Promise<AiThread | undefined> {
+  try {
+    return await db.aiThreads.get(id);
+  } catch {
+    return undefined;
+  }
+}
+
+export async function createThread(title: string, messages: AiMessage[] = []): Promise<AiThread> {
+  const now = Date.now();
+  const thread: AiThread = { id: newId('thr'), title, messages, createdAt: now, updatedAt: now };
+  await db.aiThreads.add(thread);
+  return thread;
+}
+
+export async function updateThread(
+  id: string,
+  patch: Partial<Pick<AiThread, 'title' | 'messages' | 'pinned'>>,
+): Promise<void> {
+  await db.aiThreads.update(id, { ...patch, updatedAt: Date.now() });
+}
+
+export async function renameThread(id: string, title: string): Promise<void> {
+  await db.aiThreads.update(id, { title: title.trim() || 'უსათაურო', updatedAt: Date.now() });
+}
+
+export async function deleteThread(id: string): Promise<void> {
+  await db.aiThreads.delete(id);
+}
+
+/* ------------------------------ ai memory ------------------------------- */
+
+/** Loose duplicate guard: same text after lowering case and stripping punctuation. */
+function memKey(text: string): string {
+  return text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+}
+
+export async function listMemories(): Promise<AiMemory[]> {
+  try {
+    return await db.aiMemories.orderBy('createdAt').toArray();
+  } catch {
+    return [];
+  }
+}
+
+export async function addMemory(text: string, kind: AiMemory['kind']): Promise<AiMemory | null> {
+  const clean = text.trim().replace(/\s+/g, ' ');
+  if (clean.length < 4 || clean.length > 240) return null;
+  const existing = await listMemories();
+  const key = memKey(clean);
+  if (existing.some((m) => memKey(m.text) === key)) return null;
+  if (existing.length >= 60) return null;
+  const memory: AiMemory = { id: newId('mem'), text: clean, kind, createdAt: Date.now() };
+  await db.aiMemories.add(memory);
+  return memory;
+}
+
+export async function deleteMemory(id: string): Promise<void> {
+  await db.aiMemories.delete(id);
+}
+
+export async function clearMemories(): Promise<void> {
+  await db.aiMemories.clear();
 }
 
 /* -------------------------------- documents ------------------------------- */

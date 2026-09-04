@@ -678,4 +678,30 @@ export const PEOPLE: Person[] = [
     topicIds: ['soviet-georgia-independence'],
     sources: [brit('Zviad Gamsakhurdia', 'biography/Zviad-Gamsakhurdia')],
   },
+
+  /* ------------------------- ალბათობა ------------------------- */
+  {
+    id: 'bayes-person',
+    subjectId: 'probability',
+    name: { ka: 'თომას ბაიესი', en: 'Thomas Bayes' },
+    lived: '≈ 1701–1761',
+    known: { ka: 'ბაიესის თეორემა — როგორ განვაახლოთ რწმენა მტკიცებულებით' },
+    story: {
+      ka: 'ბაიესი ინგლისელი პრესვიტერიანელი მღვდელი და მოყვარული მათემატიკოსი იყო. მისი ცნობილი ნაშრომი სიცოცხლეში არ გამოუქვეყნებია — მეგობარმა რიჩარд პრაისმა ის 1763 წელს, ბაიესის სიკვდილის შემდეგ წაიკითხა სამეცნიერო საზოგადოებაში. ორ საუკუნეს დასჭირდა, სანამ „ბაიესისეული" აზროვნება მეცნიერების მთავარ ინსტრუმენტად იქცეოდა; დღეს ის AI-სა და დიაგნოსტიკის გულშია.',
+    },
+    topicIds: ['conditional-probability', 'probability-basics'],
+    sources: [brit('Thomas Bayes', 'biography/Thomas-Bayes')],
+  },
+  {
+    id: 'kolmogorov',
+    subjectId: 'probability',
+    name: { ka: 'ანდრეი კოლმოგოროვი', en: 'Andrey Kolmogorov' },
+    lived: '1903–1987',
+    known: { ka: 'ალბათობის თეორიის აქსიომატიზაცია (1933)' },
+    story: {
+      ka: 'სამი საუკუნის განმავლობაში ალბათობა ინტუიციურ ცნებად რჩებოდა. 1933 წელს კოლმოგოროვმა ის მკაცრ მათემატიკურ საფუძველზე დააყენა — სამი მარტივი აქსიომით, საიდანაც მთელი თეორია გამომდინარეობს. ის ასევე მუშაობდა ტურბულენტობაზე, ინფორმაციის სირთულესა და ალგორითმულ შემთხვევითობაზე.',
+    },
+    topicIds: ['randomness-and-fallacies', 'probability-basics'],
+    sources: [brit('Andrey Kolmogorov', 'biography/Andrey-Nikolayevich-Kolmogorov')],
+  },
 ];

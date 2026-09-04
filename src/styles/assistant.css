@@ -346,3 +346,153 @@
 .etb__ai-status--err {
   color: var(--danger);
 }
+
+/* ---------------------- multi-chat layout + rail ---------------------- */
+
+.ask-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+
+@media (min-width: 900px) {
+  .ask-layout {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+}
+
+.ask-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.ask-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ask-rail__new {
+  width: 100%;
+}
+
+.ask-rail__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.ask-rail__item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+}
+
+.ask-rail__item.is-active {
+  background: var(--surface-raised);
+}
+
+.ask-rail__title {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0.35rem 0.4rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ask-rail__actions {
+  display: none;
+  gap: 0;
+}
+
+.ask-rail__item:hover .ask-rail__actions,
+.ask-rail__item.is-active .ask-rail__actions {
+  display: inline-flex;
+}
+
+/* On narrow screens the rail is a slide-over drawer. */
+@media (max-width: 899px) {
+  .ask-rail {
+    position: fixed;
+    z-index: 40;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(80vw, 300px);
+    padding: var(--space-4);
+    background: var(--surface);
+    border-right: 1px solid var(--line);
+    transform: translateX(-105%);
+    transition: transform 0.2s ease;
+  }
+  .ask-layout--rail-open .ask-rail {
+    transform: translateX(0);
+  }
+  .ask-rail__list {
+    max-height: none;
+  }
+  .ask-rail__actions {
+    display: inline-flex;
+  }
+}
+
+.ask-remember {
+  margin-left: 0.4rem;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  opacity: 0.5;
+  font-size: 0.85em;
+}
+.ask-remember:hover {
+  opacity: 1;
+}
+
+.ask-note--ok {
+  color: var(--success);
+}
+
+/* ---------------------- memory panel ---------------------- */
+
+.ai-memory {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ai-memory__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ai-memory__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  padding: 0.2rem 0;
+}

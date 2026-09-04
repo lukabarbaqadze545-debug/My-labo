@@ -193,6 +193,8 @@ export interface AiSettings {
   enabled: boolean;
   apiKey?: string;
   model: AiModel;
+  /** Auto-capture durable facts about the user from the conversation. */
+  memory: boolean;
   updatedAt: number;
 }
 
@@ -200,8 +202,41 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
   key: 'main',
   enabled: false,
   model: 'claude-opus-5',
+  memory: true,
   updatedAt: 0,
 };
+
+/** One turn inside a saved conversation. */
+export interface AiMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  text: string;
+  at: number;
+  meta?: {
+    sources?: { label: string; href: string }[];
+    related?: { label: string; href: string }[];
+    followUps?: string[];
+    note?: string;
+  };
+}
+
+/** A named conversation with the assistant. Messages live inline. */
+export interface AiThread {
+  id: string;
+  title: string;
+  messages: AiMessage[];
+  createdAt: number;
+  updatedAt: number;
+  pinned?: boolean;
+}
+
+/** A durable fact the assistant should remember about the user across chats. */
+export interface AiMemory {
+  id: string;
+  text: string;
+  kind: 'manual' | 'auto';
+  createdAt: number;
+}
 
 export class LaboDatabase extends Dexie {
   notes!: Table<UserNote, string>;
@@ -217,6 +252,8 @@ export class LaboDatabase extends Dexie {
   pomodoroSettings!: Table<PomodoroSettings, string>;
   documents!: Table<UserDocument, string>;
   aiSettings!: Table<AiSettings, string>;
+  aiThreads!: Table<AiThread, string>;
+  aiMemories!: Table<AiMemory, string>;
 
   constructor() {
     super('lukas-labo');
@@ -272,6 +309,23 @@ export class LaboDatabase extends Dexie {
       pomodoroSettings: 'key',
       documents: 'id, updatedAt, subjectId, trashedAt',
       aiSettings: 'key',
+    });
+    this.version(5).stores({
+      notes: 'id, kind, topicId, subjectId, createdAt, updatedAt',
+      bookmarks: 'id, entityId, entityKind, subjectId, createdAt',
+      questions: 'id, subjectId, createdAt, answeredAt',
+      interactions: '++id, subjectId, topicId, type, at',
+      activityProgress: 'activityId, completedAt, updatedAt',
+      preferences: 'key',
+      userSubjects: 'id, group, createdAt',
+      subjectOverrides: 'subjectId',
+      userTopics: 'id, subjectId, createdAt',
+      pomodoroSessions: 'id, startedAt, dateKey, subjectId',
+      pomodoroSettings: 'key',
+      documents: 'id, updatedAt, subjectId, trashedAt',
+      aiSettings: 'key',
+      aiThreads: 'id, updatedAt, createdAt, pinned',
+      aiMemories: 'id, createdAt, kind',
     });
   }
 }

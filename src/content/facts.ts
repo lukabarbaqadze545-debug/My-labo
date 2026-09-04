@@ -476,8 +476,78 @@ export const FACTS: Fact[] = [
       ka: 'გასაღები ის არის, რომ წამყვანმა *იცის*, სად არის პრიზი და მისი ქმედება ინფორმაციას ატარებს. ეს ალბათობის ერთ-ერთი ყველაზე ცნობილი გაკვეთილია: მნიშვნელოვანია არა მხოლოდ შედეგი, არამედ ისიც, როგორ მივიღეთ ინფორმაცია.',
     },
     difficulty: 3,
-    topicIds: ['probability-basics'],
+    topicIds: ['probability-basics', 'conditional-probability'],
     source: SRC.britannica('Monty Hall problem', 'https://www.britannica.com/science/Monty-Hall-problem'),
+  },
+  {
+    id: 'f-base-rate',
+    subjectId: 'probability',
+    text: {
+      ka: 'თუ დაავადება 1000 ადამიანიდან 1-ს აქვს და ტესტი 99%-ით ზუსტია, დადებითი ტესტის შემთხვევაში ავადმყოფობის ალბათობა მხოლოდ ≈ 9%-ია.',
+    },
+    why: {
+      ka: 'ცრუ-დადებითები (≈ 10 ჯანმრთელზე) ნამდვილ ავადმყოფებს (≈ 1) რიცხობრივად ჭარბობს. „საბაზისო სიხშირის უგულებელყოფა" ერთ-ერთი ყველაზე ძვირადღირებული შეცდომაა მედიცინაში, სამართალსა და უსაფრთხოებაში.',
+    },
+    difficulty: 3,
+    topicIds: ['conditional-probability'],
+    tags: ['ბაიესი', 'ალბათობა'],
+    source: SRC.britannica('Bayes’s theorem', 'https://www.britannica.com/topic/Bayess-theorem'),
+  },
+  {
+    id: 'f-gamblers-fallacy',
+    subjectId: 'probability',
+    text: {
+      ka: '1913 წელს მონტე-კარლოს კაზინოში რულეტის ბურთი ზედიზედ 26-ჯერ შავზე დაეცა. მოთამაშეებმა მილიონები დაკარგეს „წითელზე" ფსონებით, დარწმუნებულები, რომ ის „უნდა" მოსულიყო.',
+    },
+    why: {
+      ka: 'რულეტს მეხსიერება არ აქვს — ყოველი სროლა დამოუკიდებელია და შავის ალბათობა უცვლელი რჩება. „მოთამაშის შეცდომა" ერთ-ერთი ყველაზე მდგრადი ცრუ ინტუიციაა.',
+    },
+    difficulty: 2,
+    topicIds: ['expected-value', 'randomness-and-fallacies', 'probability-basics'],
+    tags: ['შემთხვევითობა'],
+    source: SRC.britannica('Gambler’s fallacy', 'https://www.britannica.com/topic/gamblers-fallacy'),
+  },
+  {
+    id: 'f-regression-mean',
+    subjectId: 'probability',
+    text: {
+      ka: 'ფრენსის გალტონმა XIX საუკუნეში შენიშნა: ძალიან მაღალი მშობლების შვილები ჩვეულებრივ მშობლებზე დაბალია, ძალიან დაბლების — მაღალი. ექსტრემუმს საშუალო მოჰყვება.',
+    },
+    why: {
+      ka: '„რეგრესია საშუალოსკენ" ხსნის მრავალ ცრუ დასკვნას: „წაქებამ ავნო, ლანძღვამ გამოასწორა" ხშირად უბრალოდ ეს სტატისტიკური ეფექტია, არა მიზეზ-შედეგი.',
+    },
+    difficulty: 3,
+    topicIds: ['randomness-and-fallacies', 'statistics-basics'],
+    tags: ['სტატისტიკა', 'ცრუ ინტუიცია'],
+    source: SRC.britannica('Regression to the mean', 'https://www.britannica.com/science/statistics'),
+  },
+  {
+    id: 'f-benford',
+    subjectId: 'probability',
+    text: {
+      ka: 'რეალურ მონაცემებში (მდინარეთა სიგრძე, ქალაქების მოსახლეობა, ბუღალტრული ჩანაწერები) პირველი ციფრი „1" გვხვდება ≈ 30% შემთხვევაში, „9" კი — მხოლოდ ≈ 5%-ში. ეს ბენფორდის კანონია.',
+    },
+    why: {
+      ka: 'თანაბრად „1"–„9" რომ ყოფილიყო, თითო ≈ 11% იქნებოდა. ეს გადახრა იმდენად საიმედოა, რომ ბენფორდის კანონს საგადასახადო თაღლითობისა და არჩევნების გაყალბების აღმოსაჩენად იყენებენ.',
+    },
+    difficulty: 3,
+    topicIds: ['distributions', 'statistics-basics'],
+    tags: ['სტატისტიკა'],
+    source: SRC.britannica('Benford’s law', 'https://www.britannica.com/science/Benfords-law'),
+  },
+  {
+    id: 'f-large-numbers',
+    subjectId: 'probability',
+    text: {
+      ka: 'დიდი რიცხვების კანონი ამბობს, რომ ბევრი ცდის საშუალო თეორიულ მნიშვნელობას უახლოვდება — მაგრამ ის *ვერაფერს* ამბობს იმაზე, რა მოხდება შემდეგ ცალკეულ ცდაში.',
+    },
+    why: {
+      ka: 'ეს ორი დებულების აღრევა („საშუალო 50%-ია" და „ახლა შავი უნდა მოვიდეს") სწორედ მოთამაშის შეცდომაა. კანონი მუშაობს უსასრულობაში, არა შემდეგ სროლაზე.',
+    },
+    difficulty: 2,
+    topicIds: ['randomness-and-fallacies', 'expected-value'],
+    tags: ['ალბათობა'],
+    source: SRC.britannica('Law of large numbers', 'https://www.britannica.com/science/law-of-large-numbers'),
   },
 
   /* ---------------- კომპიუტერული მეცნიერება ---------------- */
