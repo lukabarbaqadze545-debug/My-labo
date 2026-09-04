@@ -6,6 +6,7 @@ import { Shell } from './components/Shell';
 import { Skeleton } from './components/primitives';
 import { HomePage } from './pages/HomePage';
 import { FocusPage } from './pages/FocusPage';
+import { BooksPage } from './pages/BooksPage';
 import { AskPage } from './pages/AskPage';
 import { LabsPage } from './pages/LabsPage';
 import { SubjectPage } from './pages/SubjectPage';
@@ -48,6 +49,7 @@ export function App() {
                 <Route path="/" element={<HomePage />} />
                 <Route path="/focus" element={<FocusPage />} />
                 <Route path="/ask" element={<AskPage />} />
+                <Route path="/books" element={<BooksPage />} />
                 <Route path="/write" element={<DocumentsPage />} />
                 <Route path="/write/:id" element={<DocumentEditorPage />} />
                 <Route path="/labs" element={<LabsPage />} />

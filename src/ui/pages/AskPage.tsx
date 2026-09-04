@@ -11,8 +11,15 @@ import {
   type MoveKind,
   type ReplayTurn,
 } from '@/domain/reasoning';
+import {
+  converse,
+  emptyConversationState,
+  type ConversationState,
+  type PipelineTrace,
+} from '@/domain/conversation';
 import { AiError, streamChat, type ChatTurn } from '@/lib/claude';
-import { db, type AiMessage } from '@/persistence/db';
+import { db, ASSISTANT_MODES, type AiMessage, type AssistantMode } from '@/persistence/db';
+import type { BookCorpus, BookMode, BookScope } from '@/domain/books';
 import {
   addMemory,
   createThread,
@@ -24,6 +31,11 @@ import {
 import { useT } from '../state/AppState';
 import { AiSettings, errorText, useAiSettings } from '../components/AiSettings';
 import { ReasoningPanel } from '../components/ReasoningPanel';
+import { DebugInspector } from '../components/DebugInspector';
+import { TeachPanel } from '../components/TeachPanel';
+import { useTeachings } from '../state/useTeachings';
+import { saveAiSettings } from '@/persistence/repositories';
+import type { AliasEntry } from '@/language/ka';
 
 type Phase = 'thinking' | 'typing' | 'done';
 
@@ -128,6 +140,25 @@ function toStored(m: Msg): AiMessage {
   return { id: m.id, role: m.role, text: m.text, at: Date.now(), meta };
 }
 
+/**
+ * Rebuild conversational state by folding the stored user turns back through
+ * the pipeline. Cheap (sub-millisecond per turn) and, like the reasoning
+ * engine's replay, it guarantees the state can never disagree with the
+ * transcript the user is looking at.
+ */
+function replayConversation(
+  msgs: readonly Msg[],
+  socratic: boolean,
+  extraAliases: readonly AliasEntry[],
+): ConversationState {
+  let state = emptyConversationState();
+  for (const m of msgs) {
+    if (m.role !== 'user' || !m.text.trim()) continue;
+    state = converse(state, m.text, { socratic, extraAliases }).state;
+  }
+  return state;
+}
+
 /** Transcript shape the reasoning engine replays state from. */
 function toReplayTurns(msgs: readonly Msg[]): ReplayTurn[] {
   return msgs
@@ -173,6 +204,46 @@ export function AskPage() {
   const [savedMemo, setSavedMemo] = useState<string | null>(null);
   const [socraticOn, setSocraticOn] = useState(false);
   const [showMap, setShowMap] = useState(true);
+  const [showDebug, setShowDebug] = useState(false);
+  const [showTeach, setShowTeach] = useState(false);
+  const [lastTrace, setLastTrace] = useState<PipelineTrace | null>(null);
+
+  const { extraAliases } = useTeachings();
+  const convRef = useRef<ConversationState>(emptyConversationState());
+
+  /**
+   * Book data is read once and reused for every message. Re-reading IndexedDB
+   * per question would make chat noticeably slower as the library grows.
+   */
+  const bookRows = useLiveQuery(
+    () =>
+      Promise.all([
+        db.books.toArray(),
+        db.bookSections.toArray(),
+        db.bookChunks.toArray(),
+        db.bookKnowledge.toArray(),
+      ]),
+    [],
+  );
+  const bookCorpus = useMemo<BookCorpus>(
+    () => ({
+      books: bookRows?.[0] ?? [],
+      sections: bookRows?.[1] ?? [],
+      chunks: bookRows?.[2] ?? [],
+      knowledge: bookRows?.[3] ?? [],
+    }),
+    [bookRows],
+  );
+  /** General Georgian learned from imported books — used by every subject. */
+  const languageCorpus = useLiveQuery(
+    () => db.languageCorpus.get('main').then((r) => r?.corpus ?? null),
+    [],
+  );
+
+  const bookScope = useMemo<BookScope>(
+    () => ({ mode: ai.bookMode, bookIds: ai.bookIds }),
+    [ai.bookMode, ai.bookIds],
+  );
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const timers = useRef<number[]>([]);
@@ -248,13 +319,26 @@ export function AskPage() {
     abortRef.current?.abort();
     setBusy(false);
     setSocraticOn(Boolean(thread.socratic));
-    setMsgs(thread.messages.map(toMsg));
+    const loaded = thread.messages.map(toMsg);
+    setMsgs(loaded);
+    convRef.current = replayConversation(loaded, Boolean(thread.socratic), extraAliases);
+    setLastTrace(null);
     try {
       localStorage.setItem(ACTIVE_KEY, activeId);
     } catch {
       /* ignore */
     }
   }, [activeId, threads]);
+
+  /* Remember which conversation is open, including one created mid-session. */
+  useEffect(() => {
+    try {
+      if (activeId) localStorage.setItem(ACTIVE_KEY, activeId);
+      else localStorage.removeItem(ACTIVE_KEY);
+    } catch {
+      /* ignore */
+    }
+  }, [activeId]);
 
   /* Persist the active thread (debounced) once the exchange settles. */
   useEffect(() => {
@@ -312,58 +396,106 @@ export function AskPage() {
     setMsgs((prev) => prev.map((m) => (m.id === id ? fn(m) : m)));
   }, []);
 
-  const runEngine = useCallback(
-    (q: string, botId: string, note?: string) => {
-      const delay = 340 + Math.random() * 420;
+  /**
+   * Strict Labo. The conversational pipeline answers entirely from stored
+   * knowledge: no model, no network. This is the default and must be good on
+   * its own — every other mode is a wrapper around this one's decisions.
+   */
+  const runConversation = useCallback(
+    (q: string, botId: string) => {
+      const result = converse(convRef.current, q, {
+        socratic: socraticOn,
+        extraAliases,
+        bookScope,
+        bookCorpus,
+        languageCorpus,
+      });
+      convRef.current = result.state;
+      setLastTrace(result.trace);
+
+      const delay = 260 + Math.random() * 320;
       const id = window.setTimeout(() => {
-        const answer = ask(q);
         patch(botId, (m) => ({
           ...m,
-          text: answer.text,
-          answer,
+          text: result.reply.text,
           phase: 'typing',
-          ...(note ? { note } : {}),
+          answer: {
+            text: result.reply.text,
+            confidence:
+              result.reply.verdict === 'answer'
+                ? 'high'
+                : result.reply.verdict === 'known_but_missing'
+                  ? 'none'
+                  : 'medium',
+            sources: result.reply.sources,
+            related: result.reply.related,
+            followUps: result.reply.suggestions,
+          },
         }));
       }, delay);
       timers.current.push(id);
     },
-    [patch],
+    [patch, socraticOn, extraAliases, bookScope, bookCorpus, languageCorpus],
   );
 
   /**
-   * Socratic mode without a language model. The reasoning engine decides
-   * whether to answer or to ask, and its own phrasing is used verbatim.
-   * Follow-up chips are withheld on questions — handing the user a menu of
-   * next questions is exactly what this mode is trying not to do.
+   * Hybrid. The pipeline still decides what to say and supplies every fact;
+   * the model is allowed only to rewrite the wording. If the call fails, the
+   * engine's own text is already correct and is shown unchanged.
    */
-  const runSocraticEngine = useCallback(
-    (q: string, botId: string, history: Msg[]) => {
-      const result = socraticTurn({ history: toReplayTurns(history), utterance: q });
-      const delay = 340 + Math.random() * 420;
-      const id = window.setTimeout(() => {
-        const extras = result.asked ? { related: [], followUps: [] } : ask(q);
-        patch(botId, (m) => ({
-          ...m,
-          text: result.move.text,
-          phase: 'typing',
-          answer: {
-            text: result.move.text,
-            confidence: result.asked ? 'chat' : 'high',
-            sources: result.move.sources,
-            related: extras.related,
-            followUps: extras.followUps,
+  const runHybrid = useCallback(
+    async (q: string, botId: string) => {
+      const result = converse(convRef.current, q, {
+        socratic: socraticOn,
+        extraAliases,
+        bookScope,
+        bookCorpus,
+        languageCorpus,
+      });
+      convRef.current = result.state;
+      setLastTrace(result.trace);
+
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const system =
+        `${SYSTEM_BASE}\n\n--- მკაცრი წესი ---\n` +
+        'ქვემოთ მოცემულია ლაბოს მიერ მომზადებული პასუხი. მხოლოდ ბუნებრივად გადმოთქვი ქართულად. ' +
+        'არ დაამატო არც ერთი ახალი ფაქტი, თარიღი, სახელი ან წყარო. თუ პასუხი კითხვაა, კითხვად დატოვე.\n\n' +
+        `--- ლაბოს პასუხი ---\n${result.reply.text}`;
+
+      let acc = '';
+      try {
+        await streamChat(ai, {
+          system,
+          messages: [{ role: 'user', content: q }],
+          signal: controller.signal,
+          onText: (delta) => {
+            acc += delta;
+            patch(botId, (m) => ({ ...m, text: acc, shown: acc.length, phase: 'typing' }));
           },
-          socratic: {
-            moveKind: result.move.kind,
-            ...(result.move.targetId ? { targetId: result.move.targetId } : {}),
-            key: result.move.key,
-            rationale: result.move.rationale,
-          },
-        }));
-      }, delay);
-      timers.current.push(id);
+        });
+      } catch {
+        acc = '';
+      } finally {
+        abortRef.current = null;
+      }
+
+      const finalText = acc.trim() || result.reply.text;
+      patch(botId, (m) => ({
+        ...m,
+        text: finalText,
+        shown: finalText.length,
+        phase: acc ? 'done' : 'typing',
+        answer: {
+          text: finalText,
+          confidence: result.reply.verdict === 'answer' ? 'high' : 'medium',
+          sources: result.reply.sources,
+          related: result.reply.related,
+          followUps: result.reply.suggestions,
+        },
+      }));
     },
-    [patch],
+    [ai, patch, socraticOn, extraAliases, bookScope, bookCorpus, languageCorpus],
   );
 
   const runAi = useCallback(
@@ -496,11 +628,14 @@ export function AskPage() {
         userMsg,
         { id: botId, role: 'assistant' as const, text: '', shown: 0, phase: 'thinking' as const },
       ]);
-      if (aiOn) void runAi(q, botId, history);
-      else if (socraticOn) runSocraticEngine(q, botId, history);
-      else runEngine(q, botId);
+      // Strict is the default and the fallback: the model only participates
+      // when a key exists *and* the user chose a mode that wants it.
+      const mode: AssistantMode = aiOn ? ai.mode : 'strict';
+      if (mode === 'ai') void runAi(q, botId, history);
+      else if (mode === 'hybrid') void runHybrid(q, botId);
+      else runConversation(q, botId);
     },
-    [busy, aiOn, ai.memory, activeId, socraticOn, runAi, runEngine, runSocraticEngine],
+    [busy, aiOn, ai.memory, ai.mode, activeId, socraticOn, runAi, runHybrid, runConversation],
   );
 
   const sendNow = useCallback((raw: string) => void send(raw), [send]);
@@ -588,6 +723,54 @@ export function AskPage() {
         >
           <span aria-hidden="true">🜁</span> {t.assistant.socratic}
         </button>
+        <div className="ask-modes" role="group" aria-label={t.modes.label}>
+          {ASSISTANT_MODES.map((mode) => {
+            const locked = mode !== 'strict' && !aiOn;
+            return (
+              <button
+                key={mode}
+                className={`ask-modes__btn${ai.mode === mode ? ' is-active' : ''}`}
+                disabled={locked}
+                title={
+                  locked
+                    ? t.ai.aiNotSet
+                    : mode === 'strict'
+                      ? t.modes.strictHint
+                      : mode === 'hybrid'
+                        ? t.modes.hybridHint
+                        : t.modes.aiHint
+                }
+                onClick={() => void saveAiSettings({ mode })}
+              >
+                {mode === 'strict' ? t.modes.strict : mode === 'hybrid' ? t.modes.hybrid : t.modes.ai}
+              </button>
+            );
+          })}
+        </div>
+        {bookCorpus.books.length > 0 ? (
+          <select
+            className="input input--sm ask-bookmode"
+            value={ai.bookMode}
+            title={t.books.modeLabel}
+            onChange={(e) => {
+              const mode = e.target.value as BookMode;
+              const ids =
+                mode === 'book' && ai.bookIds.length === 0 && bookCorpus.books[0]
+                  ? [bookCorpus.books[0].id]
+                  : ai.bookIds;
+              void saveAiSettings({ bookMode: mode, bookIds: ids });
+            }}
+          >
+            <option value="off">📚 {t.books.modeOff}</option>
+            <option value="book">📕 {t.books.modeBook}</option>
+            <option value="selected">📗 {t.books.modeSelected}</option>
+            <option value="library">📚 {t.books.modeLibrary}</option>
+            <option value="with_labo">✦📚 {t.books.modeWithLabo}</option>
+          </select>
+        ) : null}
+        <button className="ask-mode" onClick={() => setShowTeach((v) => !v)}>
+          <span aria-hidden="true">✎</span> {t.teach.open}
+        </button>
         <button
           className={`ask-mode${aiOn ? ' ask-mode--ai' : ''}`}
           onClick={() => setShowSettings((v) => !v)}
@@ -595,7 +778,21 @@ export function AskPage() {
           <span aria-hidden="true">✦</span> {aiOn ? t.ai.modeAi : t.ai.modeLibrary}
           <span className="ask-mode__gear" aria-hidden="true">⚙</span>
         </button>
+        <button
+          className={`ask-mode${showDebug ? ' ask-mode--socratic' : ''}`}
+          onClick={() => setShowDebug((v) => !v)}
+          aria-pressed={showDebug}
+        >
+          <span aria-hidden="true">⌥</span> {t.debug.toggle}
+        </button>
       </div>
+
+      {showTeach ? (
+        <div className="ask-settingspanel">
+          <p className="hero__sub" style={{ marginBottom: 'var(--space-3)' }}>{t.teach.title}</p>
+          <TeachPanel />
+        </div>
+      ) : null}
 
       {socraticOn ? (
         <div className="ask-socratic-note">
@@ -773,9 +970,15 @@ export function AskPage() {
             </button>
           </form>
 
+          {showDebug && lastTrace ? <DebugInspector trace={lastTrace} /> : null}
+
           <div className="ask-foot">
             <span className="xsmall muted">
-              {aiOn ? t.ai.privacy.split('.')[0] + '.' : t.assistant.disclaimer}
+              {ai.mode === 'strict' || !aiOn
+                ? t.modes.strictHint
+                : ai.mode === 'hybrid'
+                  ? t.modes.hybridHint
+                  : t.ai.privacy.split('.')[0] + '.'}
             </span>
           </div>
         </div>

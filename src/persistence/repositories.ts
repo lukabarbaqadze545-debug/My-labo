@@ -8,6 +8,8 @@ import {
   type AiThread,
   type AiMessage,
   type AiMemory,
+  type UserAlias,
+  type UserKnowledge,
   type ActivityProgress,
   type Bookmark,
   type InteractionRecord,
@@ -22,6 +24,18 @@ import {
   type UserTopic,
 } from './db';
 import type { Subject } from '@/content';
+import { previewToBook } from '@/domain/books';
+import type {
+  Book,
+  BookChunk,
+  BookKnowledgeItem,
+  BookRelation,
+  BookSection,
+  ImportPreview,
+} from '@/domain/books';
+import type { BookCorpus } from '@/domain/books';
+import { mineLanguage, mergeCorpora } from '@/domain/language';
+import type { LanguageCorpus } from '@/domain/language';
 
 /**
  * Repository layer. React components talk to these functions, never to Dexie
@@ -398,6 +412,205 @@ export async function deleteMemory(id: string): Promise<void> {
 
 export async function clearMemories(): Promise<void> {
   await db.aiMemories.clear();
+}
+
+/* ------------------------------ teach labo ------------------------------- */
+
+export async function listUserAliases(): Promise<UserAlias[]> {
+  try {
+    return await db.userAliases.orderBy('createdAt').reverse().toArray();
+  } catch {
+    return [];
+  }
+}
+
+export async function addUserAlias(
+  concept: string,
+  label: string,
+  forms: readonly string[],
+): Promise<UserAlias | null> {
+  const clean = [...new Set(forms.map((f) => f.trim().toLowerCase()).filter((f) => f.length >= 2))];
+  if (clean.length === 0 || !concept.trim()) return null;
+  const alias: UserAlias = {
+    id: newId('alias'),
+    concept: concept.trim(),
+    label: label.trim() || concept.trim(),
+    forms: clean,
+    createdAt: Date.now(),
+  };
+  await db.userAliases.add(alias);
+  return alias;
+}
+
+export async function deleteUserAlias(id: string): Promise<void> {
+  await db.userAliases.delete(id);
+}
+
+export async function listUserKnowledge(): Promise<UserKnowledge[]> {
+  try {
+    return await db.userKnowledge.orderBy('createdAt').reverse().toArray();
+  } catch {
+    return [];
+  }
+}
+
+export async function addUserKnowledge(
+  entry: Omit<UserKnowledge, 'id' | 'createdAt'>,
+): Promise<UserKnowledge | null> {
+  if (!entry.text.trim()) return null;
+  const stored: UserKnowledge = {
+    ...entry,
+    text: entry.text.trim(),
+    id: newId('know'),
+    createdAt: Date.now(),
+  };
+  await db.userKnowledge.add(stored);
+  return stored;
+}
+
+export async function deleteUserKnowledge(id: string): Promise<void> {
+  await db.userKnowledge.delete(id);
+}
+
+/* --------------------------------- books --------------------------------- */
+
+/**
+ * Books are stored once, at import, with their index already built. Nothing is
+ * re-parsed on startup: reopening the app reads chunks and knowledge straight
+ * out of IndexedDB.
+ */
+export async function listBooks(): Promise<Book[]> {
+  try {
+    return await db.books.orderBy('importedAt').reverse().toArray();
+  } catch {
+    return [];
+  }
+}
+
+export async function getBook(id: string): Promise<Book | undefined> {
+  try {
+    return await db.books.get(id);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Commit a reviewed preview. Nothing reaches storage before this is called. */
+export async function commitBook(preview: ImportPreview): Promise<Book> {
+  const importedAt = Date.now();
+  const bookId = preview.sections[0]?.bookId ?? preview.chunks[0]?.bookId ?? newId('book');
+  const book = previewToBook(preview, bookId, importedAt);
+
+  await db.transaction(
+    'rw',
+    [db.books, db.bookSections, db.bookChunks, db.bookKnowledge, db.bookRelations],
+    async () => {
+      await db.books.put(book);
+      await db.bookSections.bulkPut(preview.sections);
+      await db.bookChunks.bulkPut(preview.chunks);
+      await db.bookKnowledge.bulkPut(preview.knowledge);
+      await db.bookRelations.bulkPut(preview.relations);
+    },
+  );
+
+  // Learn the *language* of the source as well as its claims. This is what
+  // lets a connective found in a philosophy anthology be used later in an
+  // explanation of binary search. It runs outside the transaction because a
+  // mining failure must never lose an otherwise good import.
+  try {
+    await learnLanguageFrom(preview.chunks.map((c) => c.text).join('\n\n'), bookId);
+  } catch (err) {
+    console.warn('language mining failed for', bookId, err);
+  }
+
+  return book;
+}
+
+/* ---------------------------- language layer ----------------------------- */
+
+/**
+ * General Georgian mined from imported sources.
+ *
+ * Kept separate from book knowledge: deleting a book removes what it *said*,
+ * but the language learned from it stays, because grammar is not the book's
+ * property and is used by every subject.
+ */
+export async function getLanguageCorpus(): Promise<LanguageCorpus | null> {
+  try {
+    return (await db.languageCorpus.get('main'))?.corpus ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function learnLanguageFrom(text: string, sourceId: string): Promise<LanguageCorpus> {
+  const mined = mineLanguage(text, { sourceId });
+  const existing = await getLanguageCorpus();
+  const merged = existing ? mergeCorpora([existing, mined]) : mined;
+  await db.languageCorpus.put({ key: 'main', corpus: merged });
+  return merged;
+}
+
+/** Remove a book and everything derived from it. */
+export async function deleteBook(bookId: string): Promise<void> {
+  await db.transaction(
+    'rw',
+    [db.books, db.bookSections, db.bookChunks, db.bookKnowledge, db.bookRelations],
+    async () => {
+      await db.books.delete(bookId);
+      await db.bookSections.where('bookId').equals(bookId).delete();
+      await db.bookChunks.where('bookId').equals(bookId).delete();
+      await db.bookKnowledge.where('bookId').equals(bookId).delete();
+      await db.bookRelations.where('bookId').equals(bookId).delete();
+    },
+  );
+}
+
+/** Exclude a book from retrieval without discarding the import. */
+export async function setBookDisabled(bookId: string, disabled: boolean): Promise<void> {
+  await db.books.update(bookId, { disabled });
+}
+
+/** Everything the retriever needs, read once and cached by the caller. */
+export async function loadBookCorpus(): Promise<BookCorpus> {
+  try {
+    const [books, sections, chunks, knowledge] = await Promise.all([
+      db.books.toArray(),
+      db.bookSections.toArray(),
+      db.bookChunks.toArray(),
+      db.bookKnowledge.toArray(),
+    ]);
+    return { books, sections, chunks, knowledge };
+  } catch {
+    return { books: [], sections: [], chunks: [], knowledge: [] };
+  }
+}
+
+export async function bookRelations(bookId: string): Promise<BookRelation[]> {
+  try {
+    return await db.bookRelations.where('bookId').equals(bookId).toArray();
+  } catch {
+    return [];
+  }
+}
+
+/** Portable snapshot of one book, so a processed import can be moved. */
+export async function exportBook(bookId: string): Promise<{
+  book: Book;
+  sections: BookSection[];
+  chunks: BookChunk[];
+  knowledge: BookKnowledgeItem[];
+  relations: BookRelation[];
+} | null> {
+  const book = await getBook(bookId);
+  if (!book) return null;
+  const [sections, chunks, knowledge, relations] = await Promise.all([
+    db.bookSections.where('bookId').equals(bookId).toArray(),
+    db.bookChunks.where('bookId').equals(bookId).toArray(),
+    db.bookKnowledge.where('bookId').equals(bookId).toArray(),
+    db.bookRelations.where('bookId').equals(bookId).toArray(),
+  ]);
+  return { book, sections, chunks, knowledge, relations };
 }
 
 /* -------------------------------- documents ------------------------------- */
