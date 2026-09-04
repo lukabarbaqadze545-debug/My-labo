@@ -352,7 +352,7 @@ export async function createThread(title: string, messages: AiMessage[] = []): P
 
 export async function updateThread(
   id: string,
-  patch: Partial<Pick<AiThread, 'title' | 'messages' | 'pinned'>>,
+  patch: Partial<Pick<AiThread, 'title' | 'messages' | 'pinned' | 'socratic' | 'packId'>>,
 ): Promise<void> {
   await db.aiThreads.update(id, { ...patch, updatedAt: Date.now() });
 }

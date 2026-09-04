@@ -2,6 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ask, buildGrounding, type Answer, type AnswerRef } from '@/domain/assistant';
+import {
+  replay,
+  resolvePack,
+  socraticPrompt,
+  socraticTurn,
+  type Move,
+  type MoveKind,
+  type ReplayTurn,
+} from '@/domain/reasoning';
 import { AiError, streamChat, type ChatTurn } from '@/lib/claude';
 import { db, type AiMessage } from '@/persistence/db';
 import {
@@ -14,8 +23,16 @@ import {
 } from '@/persistence/repositories';
 import { useT } from '../state/AppState';
 import { AiSettings, errorText, useAiSettings } from '../components/AiSettings';
+import { ReasoningPanel } from '../components/ReasoningPanel';
 
 type Phase = 'thinking' | 'typing' | 'done';
+
+interface SocraticMeta {
+  moveKind: string;
+  targetId?: string;
+  key: string;
+  rationale?: string;
+}
 
 interface Msg {
   id: string;
@@ -25,6 +42,7 @@ interface Msg {
   phase: Phase;
   answer?: Answer;
   note?: string;
+  socratic?: SocraticMeta;
 }
 
 const LEGACY_KEY = 'labo:ask:v1';
@@ -83,6 +101,7 @@ function toMsg(s: AiMessage): Msg {
     shown: s.text.length,
     phase: 'done',
     note: s.meta?.note,
+    socratic: s.meta?.socratic,
     answer: hasExtras
       ? {
           text: s.text,
@@ -97,15 +116,35 @@ function toMsg(s: AiMessage): Msg {
 
 function toStored(m: Msg): AiMessage {
   const meta =
-    m.answer || m.note
+    m.answer || m.note || m.socratic
       ? {
           sources: m.answer?.sources,
           related: m.answer?.related,
           followUps: m.answer?.followUps,
           note: m.note,
+          socratic: m.socratic,
         }
       : undefined;
   return { id: m.id, role: m.role, text: m.text, at: Date.now(), meta };
+}
+
+/** Transcript shape the reasoning engine replays state from. */
+function toReplayTurns(msgs: readonly Msg[]): ReplayTurn[] {
+  return msgs
+    .filter((m) => m.text.trim())
+    .map((m) => ({
+      role: m.role,
+      text: m.text,
+      ...(m.socratic
+        ? {
+            socratic: {
+              moveKind: m.socratic.moveKind as MoveKind,
+              ...(m.socratic.targetId ? { targetId: m.socratic.targetId } : {}),
+              key: m.socratic.key,
+            },
+          }
+        : {}),
+    }));
 }
 
 export function AskPage() {
@@ -132,6 +171,8 @@ export function AskPage() {
   const [railOpen, setRailOpen] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [savedMemo, setSavedMemo] = useState<string | null>(null);
+  const [socraticOn, setSocraticOn] = useState(false);
+  const [showMap, setShowMap] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const timers = useRef<number[]>([]);
@@ -206,6 +247,7 @@ export function AskPage() {
     loadedRef.current = activeId;
     abortRef.current?.abort();
     setBusy(false);
+    setSocraticOn(Boolean(thread.socratic));
     setMsgs(thread.messages.map(toMsg));
     try {
       localStorage.setItem(ACTIVE_KEY, activeId);
@@ -288,6 +330,42 @@ export function AskPage() {
     [patch],
   );
 
+  /**
+   * Socratic mode without a language model. The reasoning engine decides
+   * whether to answer or to ask, and its own phrasing is used verbatim.
+   * Follow-up chips are withheld on questions — handing the user a menu of
+   * next questions is exactly what this mode is trying not to do.
+   */
+  const runSocraticEngine = useCallback(
+    (q: string, botId: string, history: Msg[]) => {
+      const result = socraticTurn({ history: toReplayTurns(history), utterance: q });
+      const delay = 340 + Math.random() * 420;
+      const id = window.setTimeout(() => {
+        const extras = result.asked ? { related: [], followUps: [] } : ask(q);
+        patch(botId, (m) => ({
+          ...m,
+          text: result.move.text,
+          phase: 'typing',
+          answer: {
+            text: result.move.text,
+            confidence: result.asked ? 'chat' : 'high',
+            sources: result.move.sources,
+            related: extras.related,
+            followUps: extras.followUps,
+          },
+          socratic: {
+            moveKind: result.move.kind,
+            ...(result.move.targetId ? { targetId: result.move.targetId } : {}),
+            key: result.move.key,
+            rationale: result.move.rationale,
+          },
+        }));
+      }, delay);
+      timers.current.push(id);
+    },
+    [patch],
+  );
+
   const runAi = useCallback(
     async (q: string, botId: string, history: Msg[]) => {
       const grounding = buildGrounding(q);
@@ -296,10 +374,29 @@ export function AskPage() {
       const memoryBlock = memories.length
         ? `\n\n--- რა იცი მოსაუბრის შესახებ ---\n${memories.map((m) => `• ${m.text}`).join('\n')}`
         : '';
-      const libraryBlock = grounding.context
-        ? `\n\n--- ლაბოს ბიბლიოთეკიდან ---\n${grounding.context}`
-        : '';
-      const system = `${SYSTEM_BASE}${memoryBlock}${libraryBlock}`;
+
+      // In Socratic mode the engine has already decided the move. The model is
+      // a phrasing layer: it is handed one operation and told not to answer
+      // when the operation is a question. The library block is withheld on
+      // question moves so there is nothing to be tempted into explaining.
+      const socratic = socraticOn
+        ? socraticTurn({ history: toReplayTurns(history), utterance: q })
+        : null;
+      const libraryBlock =
+        grounding.context && (!socratic || !socratic.asked)
+          ? `\n\n--- ლაბოს ბიბლიოთეკიდან ---\n${grounding.context}`
+          : '';
+      const system = socratic
+        ? `${SYSTEM_BASE}${memoryBlock}\n\n${socraticPrompt(socratic)}${libraryBlock}`
+        : `${SYSTEM_BASE}${memoryBlock}${libraryBlock}`;
+      const socraticMeta: SocraticMeta | undefined = socratic
+        ? {
+            moveKind: socratic.move.kind,
+            ...(socratic.move.targetId ? { targetId: socratic.move.targetId } : {}),
+            key: socratic.move.key,
+            rationale: socratic.move.rationale,
+          }
+        : undefined;
 
       const turns: ChatTurn[] = history
         .filter((m) => m.text.trim())
@@ -327,12 +424,13 @@ export function AskPage() {
           text: acc || m.text,
           shown: (acc || m.text).length,
           phase: 'done',
+          ...(socraticMeta ? { socratic: socraticMeta } : {}),
           answer: {
             text: acc,
             confidence: 'high',
-            sources: grounding.sources,
-            related: engineTop.related,
-            followUps: engineTop.followUps,
+            sources: socratic ? socratic.move.sources : grounding.sources,
+            related: socratic?.asked ? [] : engineTop.related,
+            followUps: socratic?.asked ? [] : engineTop.followUps,
           },
         }));
       } catch (err) {
@@ -341,11 +439,22 @@ export function AskPage() {
           patch(botId, (m) => ({ ...m, phase: 'done' }));
           return;
         }
-        // Graceful degrade: answer from the library instead.
+        // Graceful degrade. In Socratic mode the engine's own phrasing already
+        // exists and needs no model, so the mode survives an API outage.
+        const fallbackText = socratic ? socratic.move.text : engineTop.text;
         patch(botId, (m) => ({
           ...m,
-          text: engineTop.text,
-          answer: engineTop,
+          text: fallbackText,
+          ...(socraticMeta ? { socratic: socraticMeta } : {}),
+          answer: socratic
+            ? {
+                text: fallbackText,
+                confidence: socratic.asked ? 'chat' : 'high',
+                sources: socratic.move.sources,
+                related: [],
+                followUps: [],
+              }
+            : engineTop,
           phase: 'typing',
           note: `${errorText(kind, t)} · ${t.ai.fellBack}`,
         }));
@@ -353,7 +462,7 @@ export function AskPage() {
         abortRef.current = null;
       }
     },
-    [ai, patch, t],
+    [ai, patch, t, socraticOn],
   );
 
   const msgsRef = useRef(msgs);
@@ -374,6 +483,7 @@ export function AskPage() {
         freshRef.current.add(thr.id);
         loadedRef.current = thr.id;
         setActiveId(thr.id);
+        if (socraticOn) void updateThread(thr.id, { socratic: true });
       }
 
       if (aiOn && ai.memory && looksPersonal(q)) void addMemory(q, 'auto');
@@ -387,12 +497,43 @@ export function AskPage() {
         { id: botId, role: 'assistant' as const, text: '', shown: 0, phase: 'thinking' as const },
       ]);
       if (aiOn) void runAi(q, botId, history);
+      else if (socraticOn) runSocraticEngine(q, botId, history);
       else runEngine(q, botId);
     },
-    [busy, aiOn, ai.memory, activeId, runAi, runEngine],
+    [busy, aiOn, ai.memory, activeId, socraticOn, runAi, runEngine, runSocraticEngine],
   );
 
   const sendNow = useCallback((raw: string) => void send(raw), [send]);
+
+  /**
+   * The reasoning state shown in the map is *replayed* from the transcript
+   * rather than stored, so what the panel shows can never drift from the
+   * conversation the user is looking at.
+   */
+  const reasoning = useMemo(() => {
+    if (!socraticOn) return null;
+    const settled = msgs.filter((m) => m.phase === 'done');
+    if (settled.length === 0) return null;
+    const pack = resolvePack(settled.map((m) => m.text).join(' '));
+    const lastBot = [...settled].reverse().find((m) => m.role === 'assistant' && m.socratic);
+    const lastMove: Move | undefined = lastBot?.socratic
+      ? {
+          kind: lastBot.socratic.moveKind as MoveKind,
+          text: lastBot.text,
+          rationale: lastBot.socratic.rationale ?? '',
+          score: 0,
+          sources: [],
+          key: lastBot.socratic.key,
+        }
+      : undefined;
+    return { state: replay(toReplayTurns(settled), pack), pack, lastMove };
+  }, [msgs, socraticOn]);
+
+  const toggleSocratic = () => {
+    const next = !socraticOn;
+    setSocraticOn(next);
+    if (activeId) void updateThread(activeId, { socratic: next });
+  };
 
   const newChat = () => {
     abortRef.current?.abort();
@@ -441,6 +582,13 @@ export function AskPage() {
           + {t.assistant.newChat}
         </button>
         <button
+          className={`ask-mode${socraticOn ? ' ask-mode--socratic' : ''}`}
+          onClick={toggleSocratic}
+          aria-pressed={socraticOn}
+        >
+          <span aria-hidden="true">🜁</span> {t.assistant.socratic}
+        </button>
+        <button
           className={`ask-mode${aiOn ? ' ask-mode--ai' : ''}`}
           onClick={() => setShowSettings((v) => !v)}
         >
@@ -449,6 +597,18 @@ export function AskPage() {
         </button>
       </div>
 
+      {socraticOn ? (
+        <div className="ask-socratic-note">
+          <strong>{t.assistant.socraticOn}</strong>
+          <span>{t.assistant.socraticHint}</span>
+          {reasoning ? (
+            <button className="btn btn--quiet btn--sm" onClick={() => setShowMap((v) => !v)}>
+              {showMap ? t.assistant.reasoningHide : t.assistant.reasoning}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
       {showSettings ? (
         <div className="ask-settingspanel">
           <p className="hero__sub" style={{ marginBottom: 'var(--space-3)' }}>{t.ai.subtitle}</p>
@@ -456,7 +616,11 @@ export function AskPage() {
         </div>
       ) : null}
 
-      <div className={`ask-layout${railOpen ? ' ask-layout--rail-open' : ''}`}>
+      <div
+        className={`ask-layout${railOpen ? ' ask-layout--rail-open' : ''}${
+          reasoning && showMap ? ' ask-layout--map' : ''
+        }`}
+      >
         <aside className="ask-rail">
           <button className="btn btn--primary btn--sm ask-rail__new" onClick={newChat}>
             + {t.assistant.newChat}
@@ -615,6 +779,14 @@ export function AskPage() {
             </span>
           </div>
         </div>
+
+        {reasoning && showMap ? (
+          <ReasoningPanel
+            state={reasoning.state}
+            pack={reasoning.pack}
+            lastMove={reasoning.lastMove}
+          />
+        ) : null}
       </div>
     </div>
   );

@@ -217,6 +217,12 @@ export interface AiMessage {
     related?: { label: string; href: string }[];
     followUps?: string[];
     note?: string;
+    /**
+     * Set on engine turns produced in Socratic mode. The reasoning state is
+     * never stored — it is replayed from these, so it can never disagree with
+     * the transcript the user can see.
+     */
+    socratic?: { moveKind: string; targetId?: string; key: string; rationale?: string };
   };
 }
 
@@ -228,6 +234,10 @@ export interface AiThread {
   createdAt: number;
   updatedAt: number;
   pinned?: boolean;
+  /** Socratic mode is per-conversation: a philosophy thread stays Socratic. */
+  socratic?: boolean;
+  /** Pinned reasoning domain, or undefined to auto-route each turn. */
+  packId?: string;
 }
 
 /** A durable fact the assistant should remember about the user across chats. */
