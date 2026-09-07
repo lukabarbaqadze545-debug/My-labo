@@ -16,6 +16,7 @@ import type {
   KnowledgeNodeType,
 } from '@/domain/knowledge/types';
 import type { Consequence, ParallelWorld } from '@/domain/worlds/types';
+import type { CtTopicProgress } from '@/domain/competitive/types';
 
 /**
  * All personal data lives locally in IndexedDB. There is no account and no
@@ -166,6 +167,13 @@ export const DEFAULT_GRAPH_PREFERENCES: GraphPreferences = {
  */
 export type WorldRecord = ParallelWorld;
 export type ConsequenceRecord = Consequence;
+
+/**
+ * Competitive Tournament — per-topic learning state. Notes reuse the shared
+ * `notes` table (topicId = the CT topic id); only the status/count/flag row is
+ * new, because no existing store carries a five-state progression.
+ */
+export type CtProgressRecord = CtTopicProgress;
 
 /* ------------------------------- pomodoro -------------------------------- */
 
@@ -410,6 +418,7 @@ export class LaboDatabase extends Dexie {
   graphPrefs!: Table<GraphPreferences, string>;
   worlds!: Table<WorldRecord, string>;
   worldConsequences!: Table<ConsequenceRecord, string>;
+  ctProgress!: Table<CtTopicProgress, string>;
   userAliases!: Table<UserAlias, string>;
   userKnowledge!: Table<UserKnowledge, string>;
   /**
@@ -650,6 +659,42 @@ export class LaboDatabase extends Dexie {
       graphPrefs: 'key',
       worlds: 'id, parentId, subjectId, status, updatedAt, createdAt',
       worldConsequences: 'id, worldId, level, kind',
+    });
+    /*
+     * v12 adds Competitive Tournament progress. One store, keyed by the CT
+     * topic id, indexed on status and reviewFlag for the roadmap filters.
+     * Notes and study events reuse `notes` and `interactions`.
+     */
+    this.version(12).stores({
+      notes: 'id, kind, topicId, subjectId, createdAt, updatedAt',
+      bookmarks: 'id, entityId, entityKind, subjectId, createdAt',
+      questions: 'id, subjectId, createdAt, answeredAt',
+      interactions: '++id, subjectId, topicId, type, at',
+      activityProgress: 'activityId, completedAt, updatedAt',
+      preferences: 'key',
+      userSubjects: 'id, group, createdAt',
+      subjectOverrides: 'subjectId',
+      userTopics: 'id, subjectId, createdAt',
+      pomodoroSessions: 'id, startedAt, dateKey, subjectId',
+      pomodoroSettings: 'key',
+      documents: 'id, updatedAt, subjectId, trashedAt',
+      aiSettings: 'key',
+      aiThreads: 'id, updatedAt, createdAt, pinned',
+      aiMemories: 'id, createdAt, kind',
+      userAliases: 'id, concept, createdAt',
+      userKnowledge: 'id, kind, topicId, concept, createdAt',
+      books: 'id, title, importedAt, status',
+      bookSections: 'id, bookId, order',
+      bookChunks: 'id, bookId, sectionId, order',
+      bookKnowledge: 'id, bookId, type, concept',
+      bookRelations: 'id, bookId, from, to',
+      languageCorpus: 'key',
+      knowledgeNodes: 'id, type, subjectId, updatedAt',
+      knowledgeEdges: 'id, sourceNodeId, targetNodeId, relationType',
+      graphPrefs: 'key',
+      worlds: 'id, parentId, subjectId, status, updatedAt, createdAt',
+      worldConsequences: 'id, worldId, level, kind',
+      ctProgress: 'topicId, status, reviewFlag, updatedAt',
     });
   }
 }

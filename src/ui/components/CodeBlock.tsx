@@ -12,7 +12,10 @@ import { useMemo } from 'react';
 const KEYWORDS: Record<string, string[]> = {
   python: ['def', 'return', 'if', 'else', 'elif', 'while', 'for', 'in', 'not', 'and', 'or', 'None', 'True', 'False', 'import', 'from', 'pass', 'class', 'lambda'],
   javascript: ['function', 'return', 'if', 'else', 'for', 'while', 'const', 'let', 'var', 'async', 'await', 'try', 'catch', 'new', 'class', 'export', 'import', 'throw', 'null', 'undefined', 'true', 'false'],
+  cpp: ['int', 'long', 'char', 'bool', 'void', 'double', 'float', 'auto', 'const', 'return', 'if', 'else', 'for', 'while', 'do', 'break', 'continue', 'struct', 'class', 'namespace', 'using', 'template', 'typename', 'sizeof', 'static', 'true', 'false', 'nullptr', 'include', 'define'],
 };
+// Contest snippets are written as ```cpp; accept the alias too.
+KEYWORDS['c++'] = KEYWORDS.cpp!;
 
 interface Token {
   text: string;

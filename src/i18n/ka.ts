@@ -18,6 +18,7 @@ export const ka = {
     home: 'მთავარი',
     graph: 'ცოდნის რუკა',
     worlds: 'ალტერნატიული სამყაროები',
+    tournament: 'ტურნირის მომზადება',
     labs: 'ლაბორატორიები',
     today: 'დღეს',
     research: 'კვლევები',

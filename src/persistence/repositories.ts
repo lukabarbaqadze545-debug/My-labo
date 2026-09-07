@@ -25,11 +25,13 @@ import {
   type GraphPreferences,
   type ConsequenceRecord,
   type WorldRecord,
+  type CtProgressRecord,
   type KnowledgeEdgeRecord,
   type KnowledgeNodeRecord,
   DEFAULT_GRAPH_PREFERENCES,
 } from './db';
 import type { KnowledgeNodeType, RelationType } from '@/domain/knowledge/types';
+import { emptyProgress, type CtStatus } from '@/domain/competitive/types';
 import { descendantsOf, wouldCycle } from '@/domain/worlds';
 import type {
   Consequence,
@@ -1098,4 +1100,64 @@ export async function importWorldsData(
     const ids = new Set((await db.worlds.toArray()).map((w) => w.id));
     await db.worldConsequences.bulkPut(consequences.filter((c) => ids.has(c.worldId)));
   });
+}
+
+
+/* -------------------- competitive tournament progress -------------------- */
+
+/**
+ * Per-topic learning state. Only status / solved / confidence / review is
+ * stored here; notes go through `createNote({ topicId: '<ct id>' })` and the
+ * "last studied" timestamp is bumped on any write below and mirrored to the
+ * shared interaction log so the rest of the app sees the activity.
+ */
+
+export async function listCtProgress(): Promise<CtProgressRecord[]> {
+  try {
+    return await db.ctProgress.toArray();
+  } catch {
+    return [];
+  }
+}
+
+export async function getCtProgress(topicId: string): Promise<CtProgressRecord> {
+  const row = await db.ctProgress.get(topicId).catch(() => undefined);
+  return row ?? emptyProgress(topicId);
+}
+
+/**
+ * Merge a patch into a topic's progress, stamping `lastStudiedAt` and
+ * `updatedAt`. Creates the row on first touch.
+ */
+export async function updateCtProgress(
+  topicId: string,
+  patch: Partial<Omit<CtProgressRecord, 'topicId' | 'updatedAt'>>,
+): Promise<CtProgressRecord> {
+  const now = Date.now();
+  const current = await getCtProgress(topicId);
+  const next: CtProgressRecord = {
+    ...current,
+    ...patch,
+    topicId,
+    lastStudiedAt: now,
+    updatedAt: now,
+  };
+  await db.ctProgress.put(next);
+  await recordInteraction({ type: 'view', at: now, topicId });
+  return next;
+}
+
+export async function setCtStatus(topicId: string, status: CtStatus): Promise<void> {
+  await updateCtProgress(topicId, { status });
+}
+
+export async function toggleCtReview(topicId: string): Promise<void> {
+  const current = await getCtProgress(topicId);
+  await updateCtProgress(topicId, { reviewFlag: !current.reviewFlag });
+}
+
+/** Bump the solved counter by a delta (may be negative), floored at 0. */
+export async function bumpCtSolved(topicId: string, delta: number): Promise<void> {
+  const current = await getCtProgress(topicId);
+  await updateCtProgress(topicId, { solved: Math.max(0, current.solved + delta) });
 }
