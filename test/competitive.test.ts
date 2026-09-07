@@ -27,7 +27,13 @@ function progressMap(overrides: Record<string, Partial<CtTopicProgress>>): Map<s
   return m;
 }
 
-const FIRST_FIVE = ['prefix-sums', 'difference-arrays', 'frequency-arrays', 'two-pointers', 'sliding-window'];
+/** Topics that must satisfy the full teaching contract. Grows one batch per phase. */
+const AUTHORED = [
+  // Phase 1
+  'prefix-sums', 'difference-arrays', 'frequency-arrays', 'two-pointers', 'sliding-window',
+  // Phase 2
+  'binary-search', 'bit-manipulation', 'recursion', 'sorting-techniques', 'coordinate-compression',
+];
 
 /* =============================== content =============================== */
 
@@ -52,18 +58,19 @@ describe('topic content', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('marks exactly the first five topics as authored', () => {
+  it('marks exactly the authored topics as authored', () => {
     const authored = CT_TOPICS.filter(isAuthored).map((t) => t.id).sort();
-    expect(authored).toEqual([...FIRST_FIVE].sort());
+    expect(authored).toEqual([...AUTHORED].sort());
   });
 
   it('every authored topic fills the teaching contract', () => {
-    for (const id of FIRST_FIVE) {
+    for (const id of AUTHORED) {
       const topic = ctTopicById.get(id)!;
       expect(topic.whatIs, `${id}.whatIs`).toBeTruthy();
       expect(topic.intuition, `${id}.intuition`).toBeTruthy();
       expect(topic.whyItWorks, `${id}.whyItWorks`).toBeTruthy();
       expect(topic.naive, `${id}.naive (problem-solving core)`).toBeTruthy();
+      expect(topic.whenToUse?.length, `${id}.whenToUse`).toBeGreaterThan(0);
       expect(topic.signals?.length, `${id}.signals`).toBeGreaterThan(0);
       expect(topic.walkthrough?.length, `${id}.walkthrough`).toBeGreaterThan(1);
       expect(topic.cpp?.length, `${id}.cpp`).toBeGreaterThan(0);
@@ -71,28 +78,67 @@ describe('topic content', () => {
       expect(topic.space, `${id}.space`).toBeTruthy();
       expect(topic.mistakes?.length, `${id}.mistakes`).toBeGreaterThan(0);
       expect(topic.edgeCases?.length, `${id}.edgeCases`).toBeGreaterThan(0);
+      expect(topic.exercises?.length, `${id}.exercises`).toBeGreaterThan(0);
       expect(topic.practice?.length, `${id}.practice`).toBeGreaterThan(0);
+      expect(topic.combineNote, `${id}.combineNote`).toBeTruthy();
+      // every relationship field is present (may be empty for roots)
+      for (const f of ['prerequisites', 'related', 'combinesWith', 'next'] as const) {
+        expect(Array.isArray(topic[f]), `${id}.${f}`).toBe(true);
+      }
     }
   });
 
   it('C++ snippets look like real contest code', () => {
-    for (const id of FIRST_FIVE) {
+    for (const id of AUTHORED) {
       for (const snippet of ctTopicById.get(id)!.cpp!) {
-        expect(snippet.code.length).toBeGreaterThan(40);
-        // sums that can overflow must use long long somewhere in the topic
+        expect(snippet.code.length, `${id} snippet`).toBeGreaterThan(40);
       }
     }
-    // Prefix sums specifically must teach the overflow lesson.
+    // Prefix sums must teach the overflow lesson.
     const ps = ctTopicById.get('prefix-sums')!;
     expect(ps.cpp!.some((c) => c.code.includes('long long'))).toBe(true);
     expect(ps.mistakes!.join(' ')).toMatch(/overflow/i);
+    // Binary search must warn about the midpoint overflow.
+    const bs = ctTopicById.get('binary-search')!;
+    expect(bs.mistakes!.join(' ')).toMatch(/overflow/i);
+    expect(bs.cpp!.some((c) => c.code.includes('lo + (hi - lo)'))).toBe(true);
+    // Bit manipulation must warn about the 1 << i vs 1LL << i trap.
+    expect(ctTopicById.get('bit-manipulation')!.mistakes!.join(' ')).toMatch(/1LL/);
   });
 
-  it('first five form a connected prerequisite chain', () => {
-    // difference-arrays → prefix-sums, and so on down the foundation line.
+  it('authored topics form a coherent prerequisite chain', () => {
+    // The foundation line, down through the core techniques.
     expect(ctTopicById.get('difference-arrays')!.prerequisites).toContain('prefix-sums');
     expect(ctTopicById.get('two-pointers')!.prerequisites).toContain('frequency-arrays');
     expect(ctTopicById.get('sliding-window')!.prerequisites).toContain('two-pointers');
+    expect(ctTopicById.get('sorting-techniques')!.prerequisites).toContain('two-pointers');
+    expect(ctTopicById.get('coordinate-compression')!.prerequisites).toContain('sorting-techniques');
+    // Binary search, bit manipulation and recursion are genuine roots — no prereq forced.
+    expect(ctTopicById.get('binary-search')!.prerequisites).toEqual([]);
+    expect(ctTopicById.get('bit-manipulation')!.prerequisites).toEqual([]);
+    expect(ctTopicById.get('recursion')!.prerequisites).toEqual([]);
+  });
+
+  it('the Phase 2 connection map is present', () => {
+    const rel = (id: string) => {
+      const t = ctTopicById.get(id)!;
+      return new Set([...t.related, ...t.combinesWith, ...t.next]);
+    };
+    expect([...rel('binary-search')]).toEqual(
+      expect.arrayContaining(['binary-search-on-answer', 'prefix-sums', 'sorting-techniques']),
+    );
+    expect([...rel('bit-manipulation')]).toEqual(
+      expect.arrayContaining(['bitmask-enumeration', 'bitmask-dp']),
+    );
+    expect([...rel('recursion')]).toEqual(
+      expect.arrayContaining(['backtracking', 'dfs', 'trees']),
+    );
+    expect([...rel('sorting-techniques')]).toEqual(
+      expect.arrayContaining(['two-pointers', 'greedy', 'coordinate-compression']),
+    );
+    expect([...rel('coordinate-compression')]).toEqual(
+      expect.arrayContaining(['sorting-techniques', 'fenwick-tree', 'segment-tree']),
+    );
   });
 });
 
@@ -226,8 +272,8 @@ describe('stats and filters', () => {
     expect(s.byStatus.mastered).toBe(1);
     expect(s.byStatus.learning).toBe(1);
     expect(s.reviewCount).toBe(1);
-    expect(s.authored).toBe(5);
-    expect(s.mastery).toBeCloseTo(1 / 5);
+    expect(s.authored).toBe(10);
+    expect(s.mastery).toBeCloseTo(1 / 10);
   });
 
   it('filters by category, priority, status and text', () => {

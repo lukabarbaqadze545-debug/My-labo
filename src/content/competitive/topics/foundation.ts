@@ -2,7 +2,7 @@ import type { CtTopic } from '../types';
 
 /**
  * FOUNDATION — the array-scanning techniques every contest problem assumes you
- * already know. The first five are fully authored; the rest are roadmap slots.
+ * already know. All eight are fully authored.
  */
 
 const prefixSums: CtTopic = {
@@ -663,37 +663,421 @@ int main() {
   next: ['binary-search', 'monotonic-queue'],
 };
 
-/* ---- roadmap slots: authored later ---- */
+/* ---- Phase 2: authored ---- */
 
-const stub = (
-  id: string,
-  title: string,
-  titleKa: string,
-  priority: CtTopic['priority'],
-  order: number,
-  rel: Pick<CtTopic, 'prerequisites' | 'related' | 'combinesWith' | 'next'>,
-): CtTopic => ({ id, title, titleKa, category: 'foundation', priority, order, ...rel });
+const binarySearch: CtTopic = {
+  id: 'binary-search',
+  title: 'Binary Search',
+  titleKa: 'ბინარული ძებნა',
+  category: 'foundation',
+  priority: 'essential',
+  order: 6,
 
-const binarySearch = stub('binary-search', 'Binary Search', 'ბინარული ძებნა', 'essential', 6, {
-  prerequisites: ['prefix-sums'],
-  related: ['two-pointers', 'binary-search-on-answer', 'sparse-table'],
-  combinesWith: ['prefix-sums', 'sorting-techniques'],
+  whatIs:
+    'Repeatedly halve a search interval over a monotone predicate. If `f` is ' +
+    'false, false, ..., false, true, ..., true along the range, binary search ' +
+    'finds the false→true boundary in `O(log n)` probes instead of scanning.',
+
+  intuition:
+    'One probe at the midpoint tells you which half the answer is in, so half ' +
+    'the candidates disappear every step. You never look at both halves.',
+
+  whyItWorks:
+    'The predicate is monotone: once it flips from false to true it never flips ' +
+    'back, so the midpoint check is decisive — it eliminates an entire side. ' +
+    '`log2(n)` halvings take `n` candidates down to 1. `lower_bound` and ' +
+    '`upper_bound` are this idea applied to "first element ≥ x" and "first > x".',
+
+  naive:
+    'Scanning for the first element ≥ x, or the first index where a condition ' +
+    'holds, is `O(n)`. Done once per query or per candidate it becomes `O(n·q)` ' +
+    'or `O(n^2)` — too slow for `n, q ~ 2·10^5`. Binary search makes each such ' +
+    'lookup `O(log n)`, for `O(q log n)` or `O(n log n)` overall.',
+
+  whenToUse: [
+    'Sorted array + "find / count / locate value x or the boundary of a condition"',
+    'A monotone yes/no predicate over an integer range — the answer is "the smallest x that works"',
+    '`lower_bound` / `upper_bound` — first ≥ x, first > x; their difference is a count',
+    'Real-valued feasibility that is monotone — binary search on a `double` for a fixed iteration count',
+  ],
+
+  signals: [
+    '"sorted array" together with "find", "count occurrences of", "closest to"',
+    '"smallest / largest value such that <condition holds>"',
+    '"the array is sorted (or can be sorted) and you query it many times"',
+    'A monotone check where you want the exact tipping point',
+  ],
+
+  walkthrough: [
+    'Sorted a = [2, 4, 4, 7, 9, 13]. Find the first index with a[i] ≥ 8.',
+    'Half-open interval [lo, hi) = [0, 6); the answer lives somewhere in [0, 6].',
+    'mid = 3, a[3] = 7 < 8 → the answer is to the right → lo = 4.',
+    'mid = 5, a[5] = 13 ≥ 8 → the answer is here or left → hi = 5.',
+    'mid = 4, a[4] = 9 ≥ 8 → hi = 4.',
+    'lo == hi == 4 → first index with a[i] ≥ 8 is 4. Three probes, not six.',
+  ],
+
+  cpp: [
+    {
+      caption: 'Boundary search on a sorted array (hand-rolled lower_bound)',
+      code: `#include <bits/stdc++.h>
+using namespace std;
+
+// first index i in [0, n) with a[i] >= x, or n if none
+int lowerBound(const vector<long long>& a, long long x) {
+    int lo = 0, hi = (int)a.size();          // half-open: answer in [lo, hi]
+    while (lo < hi) {
+        int mid = lo + (hi - lo) / 2;        // never (lo + hi) / 2 — overflow
+        if (a[mid] >= x) hi = mid;            // mid still a candidate
+        else lo = mid + 1;                    // mid ruled out
+    }
+    return lo;
+}
+
+int main() {
+    vector<long long> a = {2, 4, 4, 7, 9, 13};
+    int lb = lowerBound(a, 4);                // 1
+    int ub = lowerBound(a, 5);                // 3  -> count of 4s = ub - lb = 2
+    // library equivalents:
+    // lower_bound(a.begin(), a.end(), 4) - a.begin();
+    // upper_bound(a.begin(), a.end(), 4) - a.begin();
+    cout << lb << " " << ub << "\n";
+}`,
+    },
+    {
+      caption: 'Generic "first true" template over an integer range',
+      code: `// smallest m in [lo, hi] with ok(m) true, assuming ok is false...false,true...true
+long long firstTrue(long long lo, long long hi, function<bool(long long)> ok) {
+    hi++;                                     // hi becomes an exclusive "definitely true" sentinel
+    while (lo < hi) {
+        long long mid = lo + (hi - lo) / 2;
+        if (ok(mid)) hi = mid;
+        else lo = mid + 1;
+    }
+    return lo;                                // == original hi + 1 if nothing works
+}`,
+    },
+  ],
+
+  time:
+    'O(log n) per search. O(n log n) if the array must be sorted first. ' +
+    'Real-valued: a fixed ~100 iterations, or O(log((hi − lo) / eps)).',
+  space: 'O(1) extra.',
+
+  mistakes: [
+    '`mid = (lo + hi) / 2` overflows `int` when lo + hi exceeds INT_MAX. Always `lo + (hi - lo) / 2`.',
+    'Mixing interval conventions — `[lo, hi]` inclusive vs `[lo, hi)` half-open — causes infinite loops or off-by-one. Pick one and keep it for the whole function.',
+    'Binary searching a predicate that is not monotone — the result is silently wrong, not a crash.',
+    '`lower_bound` returns `end()` when nothing qualifies; dereferencing it is undefined behaviour.',
+    'Real-valued: looping while `lo < hi` on doubles may never terminate — loop a fixed number of times.',
+  ],
+
+  edgeCases: [
+    'Empty array — returns index 0 / "not found".',
+    'All elements < x — `lower_bound` returns n.',
+    'All elements ≥ x — returns 0.',
+    'Duplicates of x — `lower_bound` gives the first, `upper_bound` the position after the last.',
+    'Single element — one probe decides it.',
+  ],
+
+  exercises: [
+    'Count occurrences of x in a sorted array as `upper_bound - lower_bound`.',
+    'Find the element of a sorted array closest to x.',
+    'Find the peak of a bitonic array (increasing then decreasing) by binary searching the slope.',
+    'Decide whether x appears in a matrix whose rows and columns are each sorted.',
+  ],
+
+  practice: [
+    { name: 'LeetCode 34 — Find First and Last Position', tag: 'LC Medium', url: 'https://leetcode.com/problems/find-first-and-last-position-of-element-in-sorted-array/' },
+    { name: 'Codeforces 706B — Interesting drink', tag: 'CF 900', url: 'https://codeforces.com/problemset/problem/706/B' },
+    { name: 'CSES — Concert Tickets', tag: 'CSES', url: 'https://cses.fi/problemset/task/1091' },
+  ],
+
+  combineNote:
+    'Binary search is the lookup under `lower_bound` / `upper_bound`, so it pairs ' +
+    'with sorting on nearly every "sort then query" problem. On a prefix-sum ' +
+    'array of non-negative values it finds the shortest prefix reaching a ' +
+    'target. Generalised to the answer itself — binary search on the answer — it ' +
+    'turns an optimisation into a feasibility check. Coordinate compression is ' +
+    'exactly `lower_bound` on the sorted list of distinct values.',
+
+  prerequisites: [],
+  related: ['two-pointers', 'sorting-techniques', 'binary-search-on-answer', 'prefix-sums'],
+  combinesWith: ['prefix-sums', 'sorting-techniques', 'coordinate-compression'],
   next: ['binary-search-on-answer', 'ternary-search'],
-});
+};
 
-const bitManipulation = stub('bit-manipulation', 'Bit Manipulation', 'ბიტ-მანიპულაცია', 'important', 7, {
+const bitManipulation: CtTopic = {
+  id: 'bit-manipulation',
+  title: 'Bit Manipulation',
+  titleKa: 'ბიტ-მანიპულაცია',
+  category: 'foundation',
+  priority: 'important',
+  order: 7,
+
+  whatIs:
+    'Treat an integer as an array of bits and use AND / OR / XOR / shifts to ' +
+    'test, set, clear, or count them in `O(1)`. A subset of a universe of up to ' +
+    '64 elements fits in one `long long`.',
+
+  intuition:
+    'Bit i answers a yes/no question about element i. One machine word holds 64 ' +
+    'such answers and one instruction updates or combines all of them at once.',
+
+  whyItWorks:
+    'The CPU operates on every bit of a word in parallel. `x & (1LL << i)` ' +
+    'isolates bit i; `x ^ y` flips exactly the bits where x and y differ; ' +
+    '`x & -x` isolates the lowest set bit because two’s-complement negation ' +
+    'is flip-then-add-one; `__builtin_popcountll(x)` counts set bits in one ' +
+    'instruction.',
+
+  naive:
+    'Storing a small subset as a `vector<bool>` or `set<int>` costs `O(n)` per ' +
+    'union / intersection / membership plus allocation and cache misses. A ' +
+    'bitmask does each in `O(1)` with no allocation — often the difference ' +
+    'between an `O(2^n · n)` enumeration fitting the time limit and not.',
+
+  whenToUse: [
+    'A subset of a small universe — n ≤ ~22 to enumerate, ≤ 64 to store',
+    'Fast set algebra: union `|`, intersection `&`, difference `& ~`, symmetric difference `^`, membership `>> i & 1`',
+    'Parity / XOR tricks: "the one non-repeated value", prefix XOR for range XOR',
+    'Counting set bits, iterating set bits, iterating submasks of a mask',
+  ],
+
+  signals: [
+    '"n ≤ 20" (often ≤ 22) — a strong hint that subsets are enumerated',
+    '"each element is taken or not", "on/off", "subset", "mask"',
+    '"every value appears twice except one" → XOR everything together',
+    '"toggle", "flip", "XOR of a range"',
+  ],
+
+  walkthrough: [
+    'mask = 0b1011 — elements 0, 1, 3 present in a universe of 4.',
+    'Has element 2?  `mask >> 2 & 1` = 0 → no.',
+    'Add element 2:  `mask | (1 << 2)` = 0b1111.',
+    'Remove element 0: `mask & ~(1 << 0)` = 0b1110.',
+    'Count: `__builtin_popcount(0b1110)` = 3.',
+    'Lowest set bit of 0b1110: `mask & -mask` = 0b0010 (element 1).',
+    'Iterate all 2^4 subsets: `for (int s = 0; s < (1 << 4); s++)`.',
+  ],
+
+  cpp: [
+    {
+      caption: 'The idiom table',
+      code: `int  test  (int x, int i) { return (x >> i) & 1; }        // bit i set?
+int  setBit(int x, int i) { return x | (1 << i); }
+int  clr   (int x, int i) { return x & ~(1 << i); }
+int  toggle(int x, int i) { return x ^ (1 << i); }
+int  lowbit(int x)        { return x & -x; }               // lowest set bit (as a value)
+int  count (long long x)  { return __builtin_popcountll(x); }
+
+// iterate the set bits of x
+for (int m = x; m; m &= m - 1) {
+    int i = __builtin_ctz(m);   // index of the lowest set bit
+    /* use element i */
+}`,
+    },
+    {
+      caption: 'XOR to find the unique element; iterate all submasks',
+      code: `// every value appears twice except one:
+long long only = 0;
+for (long long v : a) only ^= v;          // pairs cancel, the loner remains
+
+// iterate every submask of mask (including 0), in decreasing order:
+for (int sub = mask; ; sub = (sub - 1) & mask) {
+    /* use sub */
+    if (sub == 0) break;
+}`,
+    },
+  ],
+
+  time:
+    'O(1) per bit operation. Enumerate all subsets of n: O(2^n). Iterate all ' +
+    'submasks of every mask: O(3^n) total. popcount is O(1).',
+  space: 'O(1) per mask (one word). An array indexed by mask is O(2^n).',
+
+  mistakes: [
+    '`1 << i` is a 32-bit `int`; for i ≥ 31 you need `1LL << i`. The single most common bit bug.',
+    'Precedence: `x & 1 == 0` parses as `x & (1 == 0)`. Write `(x & 1) == 0`.',
+    '`x & -x` on a plain `int` when x can be INT_MIN is undefined behaviour — use `long long` or unsigned.',
+    'Shifting by ≥ the type width (≥ 32 for `int`, ≥ 64 for `long long`) is undefined.',
+    'Signed right shift of a negative number fills with the sign bit — use unsigned for logical shifts.',
+  ],
+
+  edgeCases: [
+    'Empty mask (0) — popcount 0, no bits to iterate, `x & -x` = 0.',
+    'Full mask — for n ≥ 31 it must be `(1LL << n) - 1`.',
+    'n = 0 — the only subset is empty; the loop `s < 1` runs once.',
+    'Negative inputs — bit ops see the two’s-complement representation.',
+  ],
+
+  exercises: [
+    'Given an array where every number appears twice except one, find it in O(n) time and O(1) space.',
+    'Generate all subsets of {0..n−1}, printing each as a list of elements.',
+    'For a fixed mask, enumerate its submasks in decreasing order.',
+    'Compute the XOR of a[l..r] for many queries using a prefix-XOR array.',
+  ],
+
+  practice: [
+    { name: 'LeetCode 136 — Single Number', tag: 'LC Easy', url: 'https://leetcode.com/problems/single-number/' },
+    { name: 'LeetCode 78 — Subsets', tag: 'LC Medium', url: 'https://leetcode.com/problems/subsets/' },
+    { name: 'Codeforces 1362C — Johnny and Another Rating Drop', tag: 'CF 1400', url: 'https://codeforces.com/problemset/problem/1362/C' },
+  ],
+
+  combineNote:
+    'Bit manipulation is the substrate for bitmask enumeration (loop s over ' +
+    '0..2^n) and bitmask DP (state = the subset already handled). Prefix XOR ' +
+    'gives range XOR the way prefix sum gives range sum. `x & -x` is the index ' +
+    'step of a Fenwick tree. Meet in the middle splits the mask into two halves ' +
+    'and recombines them.',
+
   prerequisites: [],
-  related: ['bitmask-enumeration', 'bitmask-dp'],
-  combinesWith: ['bitmask-enumeration', 'bitmask-dp', 'meet-in-the-middle'],
+  related: ['bitmask-enumeration', 'bitmask-dp', 'frequency-arrays'],
+  combinesWith: ['bitmask-enumeration', 'bitmask-dp', 'meet-in-the-middle', 'fenwick-tree'],
   next: ['bitmask-enumeration'],
-});
+};
 
-const recursion = stub('recursion', 'Recursion (multi-branch)', 'რეკურსია', 'essential', 8, {
+const recursion: CtTopic = {
+  id: 'recursion',
+  title: 'Recursion (multi-branch)',
+  titleKa: 'რეკურსია',
+  category: 'foundation',
+  priority: 'essential',
+  order: 8,
+
+  whatIs:
+    'A function that solves a problem by calling itself on smaller instances and ' +
+    'combining the results. "Multi-branch" means each call spawns several ' +
+    'recursive calls — exploring a tree of choices rather than a single chain.',
+
+  intuition:
+    'Express the answer for size n in terms of answers for smaller sizes, plus a ' +
+    'base case that needs no recursion. The call stack remembers "where was I".',
+
+  whyItWorks:
+    'If every call is on a strictly smaller instance and the base case is ' +
+    'reachable, the recursion terminates; correctness follows by induction — ' +
+    'assume the recursive calls are right, show the combine step is right. The ' +
+    'call stack holds one frame per active call, so depth, not the total number ' +
+    'of calls, is the memory cost.',
+
+  naive:
+    'The real "naive vs optimised" here is recomputation. A multi-branch ' +
+    'recursion that revisits the same subproblem is exponential — naive ' +
+    'Fibonacci is O(phi^n) because fib(n−2) is recomputed all the way down. ' +
+    'Caching each distinct subproblem (memoisation) makes it O(number of ' +
+    'states). That single step is the doorway to dynamic programming.',
+
+  whenToUse: [
+    '"Try every choice at each step" with small n — permutations, subsets, board placements',
+    'A tree or nested structure — recurse into the children',
+    'Divide and conquer — split, solve both halves, merge (merge sort, quickselect)',
+    'The definition is itself recursive: "an expression is a number, or (expr op expr)"',
+  ],
+
+  signals: [
+    '"generate all", "count the number of ways", "every possible" with small n',
+    '"the input is a tree", nested brackets, nested folders',
+    '"at each step you choose one of k options"',
+    'A definition that refers to itself',
+  ],
+
+  walkthrough: [
+    'Count monotone paths (right/down only) across a 2×2 grid of cells.',
+    'solve(r, c): at the goal → 1; out of bounds → 0; else solve(r+1, c) + solve(r, c+1).',
+    'solve(0,0) = solve(1,0) + solve(0,1)   — two branches.',
+    'solve(1,0) = solve(1,1) + solve(2,0) = 1 + 0 = 1.',
+    'solve(0,1) = solve(1,1) + solve(0,2) = 1 + 0 = 1.',
+    'solve(0,0) = 2. Note solve(1,1) was evaluated twice — on a large grid that overlap is why memoisation matters.',
+  ],
+
+  cpp: [
+    {
+      caption: 'Multi-branch recursion: include / exclude to list all subsets',
+      code: `#include <bits/stdc++.h>
+using namespace std;
+
+vector<int> cur;
+void gen(const vector<int>& a, int i) {
+    if (i == (int)a.size()) {                 // base case: a full decision made
+        for (int x : cur) cout << x << ' ';
+        cout << "\n";
+        return;
+    }
+    gen(a, i + 1);                            // branch 1: skip a[i]
+    cur.push_back(a[i]);
+    gen(a, i + 1);                            // branch 2: take a[i]
+    cur.pop_back();                           // undo before returning
+}`,
+    },
+    {
+      caption: 'The recomputation trap and its fix',
+      code: `long long fibSlow(int n) {                    // O(phi^n): fib(n-2) recomputed everywhere
+    if (n < 2) return n;
+    return fibSlow(n - 1) + fibSlow(n - 2);
+}
+
+long long memo[100];                          // -1 = not computed yet
+long long fibFast(int n) {                    // O(n): each state solved once
+    if (n < 2) return n;
+    long long& r = memo[n];
+    if (r != -1) return r;
+    return r = fibFast(n - 1) + fibFast(n - 2);
+}`,
+    },
+  ],
+
+  time:
+    'With b branches and depth d the call count is O(b^d). Merge sort is ' +
+    'O(n log n). A multi-branch recursion with overlapping subproblems is ' +
+    'exponential until memoised, then O(states · work per state).',
+  space:
+    'O(depth) for the call stack — this is the number that overflows, not the ' +
+    'call count. Depth around 10^5 can exceed the ~1 MB default stack; iterate ' +
+    'or raise the limit.',
+
+  mistakes: [
+    'No base case, or one the recursion never reaches → infinite recursion → stack overflow.',
+    'Recursing on the same size — the instance never shrinks.',
+    'Exponential recomputation — the same subproblem solved thousands of times. Memoise.',
+    'Deep recursion overflowing the stack; convert to an explicit stack or increase it.',
+    'Passing large containers by value on every call — take `const&`.',
+    'Backtracking: forgetting to undo the choice after the recursive call returns.',
+  ],
+
+  edgeCases: [
+    'n = 0 / empty input — the base case must return directly, not recurse.',
+    'Single element.',
+    'A branch over an empty range — return the identity (0 for a sum, empty for a list).',
+    'Recursion depth exactly at the stack limit.',
+  ],
+
+  exercises: [
+    'Print all subsets of {1..n} with include/exclude recursion.',
+    'Count the ordered ways to write n as a sum of 1s and 2s — naive, then memoise (it is Fibonacci).',
+    'Sum every integer in an arbitrarily nested list.',
+    'Implement merge sort.',
+  ],
+
+  practice: [
+    { name: 'CSES — Creating Strings', tag: 'CSES', url: 'https://cses.fi/problemset/task/1622' },
+    { name: 'CSES — Apple Division', tag: 'CSES', url: 'https://cses.fi/problemset/task/1623' },
+    { name: 'LeetCode 46 — Permutations', tag: 'LC Medium', url: 'https://leetcode.com/problems/permutations/' },
+  ],
+
+  combineNote:
+    'Multi-branch recursion plus "undo after the call" is backtracking. Plus ' +
+    'memoisation it is top-down DP — the same recursion, each distinct ' +
+    'subproblem solved once. Recursion over a graph’s adjacency is DFS; over ' +
+    'a tree it is tree traversal, and combining the children’s answers on the ' +
+    'way back up is tree DP. Divide and conquer is recursion whose branches ' +
+    'partition the input.',
+
   prerequisites: [],
-  related: ['backtracking', 'dfs', 'dp-fundamentals'],
-  combinesWith: ['backtracking', 'memoization-vs-iterative'],
+  related: ['backtracking', 'dfs', 'trees', 'dp-fundamentals', 'memoization-vs-iterative'],
+  combinesWith: ['backtracking', 'memoization-vs-iterative', 'dfs'],
   next: ['backtracking', 'dfs'],
-});
+};
 
 export const FOUNDATION_TOPICS: CtTopic[] = [
   prefixSums,
