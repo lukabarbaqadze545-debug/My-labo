@@ -13,7 +13,7 @@ import {
 import { useCompetitive, useTopicNotes } from '../state/useCompetitive';
 import { StatusControl } from '../components/tournament/StatusControl';
 import { TopicSections } from '../components/tournament/TopicSections';
-import { CT_PRIORITY_LABEL, CT_SECTION_LABEL } from '../components/tournament/labels';
+import { CT_PRIORITY_LABEL, CT_SECTION_LABEL, ctEnglish, ctName } from '../components/tournament/labels';
 
 /**
  * One topic as a focused learning document: content sections top to bottom,
@@ -64,8 +64,8 @@ export function TournamentTopicPage() {
           </nav>
 
           <header className="ct-topic__head">
-            <h1 className="ct-topic__title">{topic.title}</h1>
-            {topic.titleKa ? <p className="ct-topic__ka">{topic.titleKa}</p> : null}
+            <h1 className="ct-topic__title">{ctName(topic)}</h1>
+            {ctEnglish(topic) ? <p className="ct-topic__en">{ctEnglish(topic)}</p> : null}
             <div className="ct-topic__tags">
               <span className={`ct-prio ct-prio--${topic.priority}`}>
                 {CT_PRIORITY_LABEL[topic.priority]}
@@ -76,8 +76,14 @@ export function TournamentTopicPage() {
 
           {view && !view.unlocked ? (
             <div className="ct-lockbar">
-              ჯერ ღირს: {view.missingPrereqs.map((t) => (
-                <Link key={t.id} to={`/tournament/${t.id}`}>{t.title}</Link>
+              ჯერ ღირს:{' '}
+              {view.missingPrereqs.map((t, i) => (
+                <span key={t.id}>
+                  {i > 0 ? ', ' : ''}
+                  <Link to={`/tournament/${t.id}`} title={t.title}>
+                    {ctName(t)}
+                  </Link>
+                </span>
               ))}
             </div>
           ) : null}
@@ -122,7 +128,7 @@ export function TournamentTopicPage() {
           {nextTopic ? (
             <Link to={`/tournament/${nextTopic.id}`} className="ct-next ct-next--inline">
               <span className="ct-next__label">შემდეგ</span>
-              <span className="ct-next__title">{nextTopic.title}</span>
+              <span className="ct-next__title">{ctName(nextTopic)}</span>
               <span className="ct-next__go" aria-hidden="true">→</span>
             </Link>
           ) : null}

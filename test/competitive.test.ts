@@ -88,6 +88,35 @@ describe('topic content', () => {
     }
   });
 
+  it('every authored topic is localised into Georgian', () => {
+    const georgian = /[\u10A0-\u10FF]/; // Mkhedruli range
+    for (const id of AUTHORED) {
+      const t = ctTopicById.get(id)!;
+      expect(t.titleKa, `${id}.titleKa`).toBeTruthy();
+      expect(georgian.test(t.titleKa!), `${id}.titleKa is Georgian`).toBe(true);
+      // Teaching prose must be Georgian, not the original English.
+      for (const field of ['whatIs', 'intuition', 'whyItWorks', 'naive', 'combineNote'] as const) {
+        expect(georgian.test(t[field] ?? ''), `${id}.${field} is Georgian`).toBe(true);
+      }
+      for (const line of [...(t.whenToUse ?? []), ...(t.signals ?? []), ...(t.mistakes ?? [])]) {
+        expect(georgian.test(line), `${id} list line is Georgian: ${line}`).toBe(true);
+      }
+      // C++ code stays untouched (ASCII identifiers, no Mkhedruli inside code).
+      for (const c of t.cpp ?? []) {
+        expect(georgian.test(c.code), `${id} code must not contain Georgian`).toBe(false);
+      }
+    }
+  });
+
+  it('preserved English technical terms where they aid recognition', () => {
+    const bs = ctTopicById.get('binary-search')!;
+    expect(bs.whyItWorks).toMatch(/lower_bound/);
+    expect(bs.time).toMatch(/O\(log n\)/);
+    expect(ctTopicById.get('recursion')!.naive).toMatch(/Fibonacci|DP/);
+    expect(ctTopicById.get('prefix-sums')!.combineNote).toMatch(/hash map|binary search/);
+    expect(ctTopicById.get('prefix-sums')!.mistakes!.join(' ')).toMatch(/Fenwick|long long/);
+  });
+
   it('C++ snippets look like real contest code', () => {
     for (const id of AUTHORED) {
       for (const snippet of ctTopicById.get(id)!.cpp!) {

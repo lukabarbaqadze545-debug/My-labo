@@ -5,7 +5,7 @@ import { CT_STATUSES, type CtStatus } from '@/domain/competitive/types';
 import { filterTopics } from '@/domain/competitive';
 import { useCompetitive } from '../state/useCompetitive';
 import { TopicCard } from '../components/tournament/TopicCard';
-import { CT_PRIORITY_LABEL, CT_STATUS_LABEL } from '../components/tournament/labels';
+import { CT_PRIORITY_LABEL, CT_STATUS_LABEL, ctName } from '../components/tournament/labels';
 
 /**
  * The roadmap: the whole syllabus as categorised, filterable cards, with a
@@ -65,7 +65,7 @@ export function TournamentPage() {
       {recommended ? (
         <Link to={`/tournament/${recommended.topic.id}`} className="ct-next">
           <span className="ct-next__label">შემდეგ ისწავლე</span>
-          <span className="ct-next__title">{recommended.topic.title}</span>
+          <span className="ct-next__title">{ctName(recommended.topic)}</span>
           <span className="ct-next__go" aria-hidden="true">→</span>
         </Link>
       ) : (

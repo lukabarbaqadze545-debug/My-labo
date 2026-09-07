@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import type { CtTopic } from '@/content/competitive';
 import { relatedTopics } from '@/domain/competitive';
 import { CodeBlock } from '../CodeBlock';
-import { CT_SECTION_LABEL } from './labels';
+import { CT_SECTION_LABEL, ctName } from './labels';
 
 /**
  * Renders a topic's authored content as a sequence of focused sections. Every
@@ -60,8 +60,8 @@ function RelChips({ ids }: { ids: readonly string[] }) {
   return (
     <div className="ct-chips">
       {topics.map((t) => (
-        <Link key={t.id} to={`/tournament/${t.id}`} className="ct-chip">
-          {t.title}
+        <Link key={t.id} to={`/tournament/${t.id}`} className="ct-chip" title={t.title}>
+          {ctName(t)}
         </Link>
       ))}
     </div>

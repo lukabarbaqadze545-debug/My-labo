@@ -215,11 +215,25 @@
   color: var(--success);
 }
 
-.ct-card__title {
+.ct-card__names {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ct-card__title {
   font-size: var(--text-sm);
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ct-card__en {
+  font-size: 0.68rem;
+  color: var(--ink-4);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -309,10 +323,11 @@
   line-height: var(--leading-tight);
 }
 
-.ct-topic__ka {
-  margin: 2px 0 0;
+.ct-topic__en {
+  margin: 3px 0 0;
   font-size: var(--text-sm);
-  color: var(--ink-3);
+  color: var(--ink-4);
+  letter-spacing: 0.01em;
 }
 
 .ct-topic__tags {

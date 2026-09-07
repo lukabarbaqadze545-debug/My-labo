@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { CtTopicView } from '@/domain/competitive';
-import { CT_STATUS_GLYPH, CT_STATUS_LABEL, CT_PRIORITY_LABEL } from './labels';
+import { CT_STATUS_GLYPH, CT_STATUS_LABEL, CT_PRIORITY_LABEL, ctEnglish, ctName } from './labels';
 
 /**
  * A compact roadmap card. Shows just enough to decide whether to open it:
@@ -19,7 +19,10 @@ export function TopicCard({ view }: { view: CtTopicView }) {
         <span className="ct-card__dot" title={CT_STATUS_LABEL[progress.status]}>
           {CT_STATUS_GLYPH[progress.status]}
         </span>
-        <span className="ct-card__title">{topic.title}</span>
+        <span className="ct-card__names">
+          <span className="ct-card__title">{ctName(topic)}</span>
+          {ctEnglish(topic) ? <span className="ct-card__en">{ctEnglish(topic)}</span> : null}
+        </span>
         {progress.reviewFlag ? <span className="ct-card__flag" title="გასამეორებელი">⟳</span> : null}
       </div>
 
@@ -33,7 +36,7 @@ export function TopicCard({ view }: { view: CtTopicView }) {
 
       {authored && !unlocked ? (
         <p className="ct-card__lock">
-          საჭიროა: {missingPrereqs.map((t) => t.title).join(', ')}
+          საჭიროა: {missingPrereqs.map((t) => ctName(t)).join(', ')}
         </p>
       ) : null}
     </Link>

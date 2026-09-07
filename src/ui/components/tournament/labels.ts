@@ -50,3 +50,17 @@ export const CT_SECTION_LABEL = {
 export function ctCategoryKa(labels: Record<CtCategory, { ka: string }>, cat: CtCategory): string {
   return labels[cat].ka;
 }
+
+/**
+ * Display name for a topic: Georgian first (the app is Georgian-first), with the
+ * English technical term kept as `topic.title` for the muted subtitle and for
+ * problem-statement recognition.
+ */
+export function ctName(topic: { title: string; titleKa?: string }): string {
+  return topic.titleKa ?? topic.title;
+}
+
+/** The English technical term, when it is worth showing alongside the Georgian. */
+export function ctEnglish(topic: { title: string; titleKa?: string }): string | null {
+  return topic.titleKa && topic.titleKa !== topic.title ? topic.title : null;
+}

@@ -1,62 +1,64 @@
 import type { CtTopic } from '../types';
 
 /**
- * FOUNDATION — the array-scanning techniques every contest problem assumes you
- * already know. All eight are fully authored.
+ * FOUNDATION — მასივზე გავლის ხრიკები, რომლებსაც ყველა საკონკურსო ამოცანა
+ * ნაგულისხმევად ითხოვს. ახსნა-განმარტება ქართულადაა; ტექნიკური ტერმინები
+ * (binary search, prefix sum, O(n), DP, BFS…) ინგლისურად რჩება იქ, სადაც ეს
+ * ბუნებრივია საკონკურსო ამოცანების ამოცნობისთვის. კოდი ხელუხლებელია.
  */
 
 const prefixSums: CtTopic = {
   id: 'prefix-sums',
   title: 'Prefix Sums',
-  titleKa: 'პრეფიქს-ჯამები',
+  titleKa: 'პრეფიქსული ჯამები',
   category: 'foundation',
   priority: 'essential',
   order: 1,
 
   whatIs:
-    'A prefix sum array `p` where `p[i]` holds the sum of the first `i` elements. ' +
-    'Built once in O(n), it turns any range-sum query `sum(l..r)` into the single ' +
-    'subtraction `p[r+1] - p[l]`.',
+    'პრეფიქს-ჯამების მასივი `p`, სადაც `p[i]` ინახავს პირველი `i` ელემენტის ჯამს. ' +
+    'ერთხელ აიგება O(n)-ში და ნებისმიერ დიაპაზონურ ჯამს `sum(l..r)` აქცევს ერთ ' +
+    'გამოკლებად: `p[r+1] - p[l]`.',
 
   intuition:
-    'Precompute every "sum from the start". The sum of a middle segment is then ' +
-    'just the difference of two of those — the shared front cancels out.',
+    'წინასწარ გამოვთვალოთ ყველა „ჯამი დასაწყისიდან". შუა მონაკვეთის ჯამი მაშინ ' +
+    'უბრალოდ ორი ასეთის სხვაობაა — საერთო წინა ნაწილი იკვეცება.',
 
   whyItWorks:
-    'sum(l..r) = (sum of 0..r) - (sum of 0..l-1). Both operands are already ' +
-    'stored, so the query touches two cells regardless of how wide the range is. ' +
-    'Using `p` of length n+1 with `p[0] = 0` removes the special case at l = 0.',
+    'sum(l..r) = (0..r-ის ჯამი) − (0..l−1-ის ჯამი). ორივე უკვე შენახულია, ამიტომ ' +
+    'მოთხოვნა ორ უჯრედს ეხება, რამდენად ფართოც არ უნდა იყოს დიაპაზონი. `p`-ის ' +
+    'სიგრძე n+1-ით და `p[0] = 0`-ით l = 0-ის განსაკუთრებული შემთხვევა ქრება.',
 
   naive:
-    'The obvious solution answers each query with a loop from l to r: O(n) per ' +
-    'query, O(n·q) total. With n, q up to 2·10^5 that is 4·10^10 operations — far ' +
-    'past the ~10^8 a second budget. Prefix sums move the work to a one-time O(n) ' +
-    'pass, after which every query is O(1), for O(n + q) overall.',
+    'მარტივი გადაწყვეტა თითო მოთხოვნას l-დან r-მდე ციკლით პასუხობს: O(n) თითო ' +
+    'მოთხოვნაზე, O(n·q) სულ. n, q ≤ 2·10^5-ისთვის ეს 4·10^10 ოპერაციაა — ბევრად ' +
+    'მეტი, ვიდრე ~10^8 წამში. პრეფიქს-ჯამები სამუშაოს ერთჯერად O(n) გავლაზე ' +
+    'გადააქვს, რის შემდეგაც თითო მოთხოვნა O(1)-ია, სულ O(n + q).',
 
   whenToUse: [
-    'Many range-sum (or range-count) queries over an array that does not change',
-    'You need "sum of elements in [l, r]" as a fast subroutine inside a larger algorithm',
-    'Counting how many values fall in a range, after bucketing them into an array',
+    'ბევრი დიაპაზონური ჯამის (ან დათვლის) მოთხოვნა მასივზე, რომელიც არ იცვლება',
+    '„[l, r]-ის ელემენტების ჯამი" გჭირდება როგორც სწრაფი ქვეპროგრამა უფრო დიდ ალგორითმში',
+    'რამდენი მნიშვნელობა ხვდება დიაპაზონში — მას შემდეგ, რაც ისინი მასივში დაითვალე',
   ],
 
   signals: [
-    '"answer q queries, each asking for the sum / average / count over a subarray"',
-    '"the array is given once and never modified"',
-    '"for every index, you need the total to its left"',
-    'A brute-force double loop where the inner loop only accumulates a sum',
+    '„უპასუხე q მოთხოვნას, თითო ითხოვს ქვემასივის ჯამს / საშუალოს / რაოდენობას"',
+    '„მასივი მოცემულია ერთხელ და აღარ იცვლება"',
+    '„თითო ინდექსისთვის საჭიროა მარცხნივ არსებული ჯამი"',
+    'უხეში ორმაგი ციკლი, სადაც შიდა ციკლი მხოლოდ ჯამს აგროვებს',
   ],
 
   walkthrough: [
-    'Array a = [3, 1, 4, 1, 5], 0-indexed. Query: sum of a[1..3] (values 1, 4, 1 = 6).',
-    'Build p of length 6 with p[0] = 0.',
+    'მასივი a = [3, 1, 4, 1, 5], 0-იდან ინდექსირებული. მოთხოვნა: a[1..3]-ის ჯამი (1 + 4 + 1 = 6).',
+    'ავაგოთ p სიგრძით 6, p[0] = 0.',
     'p[1] = p[0] + a[0] = 3; p[2] = 3 + 1 = 4; p[3] = 4 + 4 = 8; p[4] = 8 + 1 = 9; p[5] = 9 + 5 = 14.',
-    'sum(1..3) = p[4] - p[1] = 9 - 3 = 6. Correct, in one subtraction.',
-    'A second query sum(0..4) = p[5] - p[0] = 14 - 0 = 14, again O(1).',
+    'sum(1..3) = p[4] − p[1] = 9 − 3 = 6. სწორია, ერთი გამოკლებით.',
+    'მეორე მოთხოვნა sum(0..4) = p[5] − p[0] = 14 − 0 = 14, ისევ O(1).',
   ],
 
   cpp: [
     {
-      caption: '1D prefix sums with range queries',
+      caption: 'ერთგანზომილებიანი prefix sum დიაპაზონური მოთხოვნებით',
       code: `#include <bits/stdc++.h>
 using namespace std;
 
@@ -75,7 +77,7 @@ int main() {
 }`,
     },
     {
-      caption: '2D prefix sums — sum over a submatrix in O(1)',
+      caption: 'ორგანზომილებიანი prefix sum — ქვემატრიცის ჯამი O(1)-ში',
       code: `// p[i][j] = sum of the rectangle from (0,0) to (i-1,j-1)
 vector<vector<long long>> p(n + 1, vector<long long>(m + 1, 0));
 for (int i = 0; i < n; i++)
@@ -89,27 +91,27 @@ auto rect = [&](int r1, int c1, int r2, int c2) {
     },
   ],
 
-  time: 'O(n) preprocessing, O(1) per query. 2D: O(n·m) build, O(1) per rectangle.',
-  space: 'O(n) for the prefix array (O(n·m) in 2D). The original array can be discarded.',
+  time: 'O(n) წინასწარი დამუშავება, O(1) თითო მოთხოვნაზე. 2D: O(n·m) აგება, O(1) თითო მართკუთხედზე.',
+  space: 'O(n) პრეფიქსების მასივისთვის (O(n·m) 2D-ში). საწყისი მასივი შეიძლება გადავაგდოთ.',
 
   mistakes: [
-    'Storing sums in `int` — a range of 2·10^5 values near 10^9 overflows. Use `long long`.',
-    'Off-by-one: with a length-n `p` you must special-case l = 0. A length-(n+1) `p` with p[0] = 0 does not.',
-    'Applying it to an array that changes between queries — then you need a Fenwick tree instead.',
-    '2D: forgetting the `+ p[i][j]` inclusion–exclusion term, which is subtracted twice otherwise.',
+    'ჯამების `int`-ში შენახვა — 2·10^5 მნიშვნელობა 10^9-თან ახლოს გადაივსება (overflow). გამოიყენე `long long`.',
+    'ერთით ცდომა: სიგრძე-n-ის `p`-სთან l = 0 ცალკე უნდა დაამუშაო; სიგრძე-(n+1)-ის `p` `p[0] = 0`-ით — აღარ.',
+    'მასივზე, რომელიც მოთხოვნებს შორის იცვლება — მაშინ Fenwick-ის ხე გჭირდება.',
+    '2D: `+ p[i][j]` ჩართვა-გამორიცხვის წევრის დავიწყება, რომელიც სხვაგვარად ორჯერ გამოაკლდება.',
   ],
 
   edgeCases: [
-    'l == r: a single element, sum = p[r+1] - p[r] = a[r].',
-    'Empty range (if the problem allows l > r): define it as 0, i.e. p[l] - p[l].',
-    'All negatives: still correct — prefix sums make no sign assumption.',
-    'n == 0: p = [0], no query is valid, but the build does not crash.',
+    'l == r: ერთი ელემენტი, sum = p[r+1] − p[r] = a[r].',
+    'ცარიელი დიაპაზონი (თუ ამოცანა l > r-ს უშვებს): განსაზღვრე 0-ად, ე.ი. p[l] − p[l].',
+    'ყველა უარყოფითი: მაინც სწორია — პრეფიქს-ჯამები ნიშანზე ვარაუდს არ აკეთებს.',
+    'n == 0: p = [0], ვერცერთი მოთხოვნა ვერ იქნება ვალიდური, მაგრამ აგება არ იშლება.',
   ],
 
   exercises: [
-    'Given an array, answer: "is the sum of a[l..r] equal to zero?" in O(1) per query.',
-    'Count subarrays with sum exactly k using a hash map of prefix-sum frequencies (O(n)).',
-    'Given a 0/1 array, find the longest subarray with equal counts of 0 and 1.',
+    'მოცემულ მასივზე უპასუხე: „a[l..r]-ის ჯამი ნულის ტოლია?" O(1)-ში თითო მოთხოვნაზე.',
+    'დაითვალე ქვემასივები ჯამით ზუსტად k — პრეფიქს-ჯამების სიხშირეების hash map-ით (O(n)).',
+    '0/1 მასივში იპოვე უგრძესი ქვემასივი, სადაც 0-ებისა და 1-ების რაოდენობა ტოლია.',
   ],
 
   practice: [
@@ -119,10 +121,10 @@ auto rect = [&](int r1, int c1, int r2, int c2) {
   ],
 
   combineNote:
-    'Prefix sums are the base layer for difference arrays (their inverse), for ' +
-    '2D range queries, and for the "count subarrays with property X" family when ' +
-    'paired with a hash map. Binary search on a prefix array locates the shortest ' +
-    'prefix reaching a target sum when all values are non-negative.',
+    'პრეფიქს-ჯამები საბაზისო ფენაა სხვაობათა მასივისთვის (მისი შებრუნებული), 2D ' +
+    'დიაპაზონური მოთხოვნებისთვის და „დაითვალე ქვემასივები თვისებით X" ოჯახისთვის ' +
+    'hash map-თან წყვილში. binary search პრეფიქსების მასივზე პოულობს უმოკლეს ' +
+    'პრეფიქსს, რომელიც სამიზნე ჯამს აღწევს, თუ ყველა მნიშვნელობა არაუარყოფითია.',
 
   prerequisites: [],
   related: ['difference-arrays', 'frequency-arrays', 'fenwick-tree'],
@@ -133,56 +135,56 @@ auto rect = [&](int r1, int c1, int r2, int c2) {
 const differenceArrays: CtTopic = {
   id: 'difference-arrays',
   title: 'Difference Arrays',
-  titleKa: 'სხვაობის მასივები',
+  titleKa: 'სხვაობათა მასივი',
   category: 'foundation',
   priority: 'essential',
   order: 2,
 
   whatIs:
-    'The inverse of a prefix sum. To add `v` to every element of `a[l..r]`, you ' +
-    'instead do `d[l] += v` and `d[r+1] -= v` on a difference array `d`. After all ' +
-    'updates, the prefix sum of `d` reconstructs the final array.',
+    'prefix sum-ის შებრუნებული. იმისთვის, რომ `v` დაუმატო `a[l..r]`-ის ყველა ' +
+    'ელემენტს, სამაგიეროდ სხვაობათა მასივზე `d` აკეთებ `d[l] += v` და ' +
+    '`d[r+1] -= v`. ყველა განახლების შემდეგ `d`-ის prefix sum აღადგენს საბოლოო მასივს.',
 
   intuition:
-    'Record only where the running increment *changes*: it turns on at `l` and ' +
-    'turns off just past `r`. Sweeping left to right re-accumulates the value.',
+    'ჩაინიშნე მხოლოდ იქ, სადაც მიმდინარე ნამატი *იცვლება*: ის ირთვება `l`-ზე და ' +
+    'ითიშება `r`-ის მიღმა. მარცხნიდან მარჯვნივ გავლა მნიშვნელობას თავიდან აგროვებს.',
 
   whyItWorks:
-    'If `d` is defined so that `a[i] = d[0] + d[1] + ... + d[i]`, then a range ' +
-    'update on `a` is a point update on `d`: raising the increment at `l` lifts ' +
-    'every later prefix, and lowering it at `r+1` cancels that lift from `r+1` on. ' +
-    'Exactly the elements `l..r` keep the change.',
+    'თუ `d` ისეა განსაზღვრული, რომ `a[i] = d[0] + d[1] + ... + d[i]`, მაშინ `a`-ზე ' +
+    'დიაპაზონური განახლება `d`-ზე წერტილოვანი განახლებაა: `l`-ზე ნამატის აწევა ' +
+    'ყველა შემდგომ პრეფიქსს ზრდის, ხოლო `r+1`-ზე დაწევა ამ ზრდას `r+1`-იდან ' +
+    'აუქმებს. ცვლილება ზუსტად `l..r` ელემენტებს რჩება.',
 
   naive:
-    'Applying q range-add updates directly is O(n) each, O(n·q) total — too slow ' +
-    'for n, q ~ 2·10^5. The difference array makes each update O(1); one final ' +
-    'O(n) prefix-sum pass materialises the array. Total O(n + q).',
+    'q დიაპაზონური განახლების პირდაპირ გამოყენება O(n)-ია თითო, O(n·q) სულ — ' +
+    'ნელია n, q ≤ 2·10^5-ისთვის. სხვაობათა მასივი თითო განახლებას O(1)-ს ხდის; ' +
+    'ერთი საბოლოო O(n) prefix-sum გავლა მასივს ამატერიალებს. სულ O(n + q).',
 
   whenToUse: [
-    'Many range-add / range-subtract updates, and you only need the array *after* all of them',
-    '"Add 1 to every position in [l, r]" repeated — e.g. counting overlapping intervals',
-    'Simulating +/- events on a timeline (people entering and leaving, bookings)',
+    'ბევრი დიაპაზონური მიმატება / გამოკლება, და მასივი გჭირდება *ყველა მათგანის შემდეგ*',
+    '„დაუმატე 1 [l, r]-ის ყველა პოზიციას" გამეორებით — მაგ. გადამფარავი ინტერვალების დათვლა',
+    '+/− მოვლენების სიმულაცია დროის ღერძზე (შემოსვლა-გასვლა, ჯავშნები)',
   ],
 
   signals: [
-    '"apply q updates, each adding a value to a contiguous range, then print the array"',
-    '"how many intervals cover each point"',
-    '"the queries are all updates; there are no reads until the end"',
-    'Range updates with only a single final read — no interleaved queries',
+    '„გამოიყენე q განახლება, თითო ამატებს მნიშვნელობას მიმდევრობით დიაპაზონს, მერე დაბეჭდე მასივი"',
+    '„რამდენი ინტერვალი ფარავს თითო წერტილს"',
+    '„ყველა მოთხოვნა განახლებაა; წაკითხვა მხოლოდ ბოლოსაა"',
+    'დიაპაზონური განახლებები ერთადერთი საბოლოო წაკითხვით — შუა მოთხოვნების გარეშე',
   ],
 
   walkthrough: [
-    'n = 5, array starts [0,0,0,0,0]. Updates: add 2 to [1,3], then add 5 to [0,2].',
-    'd starts [0,0,0,0,0,0] (length n+1).',
-    'Update 1: d[1] += 2, d[4] -= 2  →  d = [0, 2, 0, 0, -2, 0].',
-    'Update 2: d[0] += 5, d[3] -= 5  →  d = [5, 2, 0, -5, -2, 0].',
-    'Prefix-sum d: [5, 7, 7, 2, 0, ...] — take the first n: a = [5, 7, 7, 2, 0].',
-    'Check position 2: covered by both updates, 2 + 5 = 7. Correct.',
+    'n = 5, მასივი იწყება [0,0,0,0,0]. განახლებები: +2 [1,3]-ზე, მერე +5 [0,2]-ზე.',
+    'd იწყება [0,0,0,0,0,0] (სიგრძე n+1).',
+    'განახლება 1: d[1] += 2, d[4] −= 2  →  d = [0, 2, 0, 0, −2, 0].',
+    'განახლება 2: d[0] += 5, d[3] −= 5  →  d = [5, 2, 0, −5, −2, 0].',
+    'd-ის prefix sum: [5, 7, 7, 2, 0, ...] — ავიღოთ პირველი n: a = [5, 7, 7, 2, 0].',
+    'პოზიცია 2: ორივე განახლება ფარავს, 2 + 5 = 7. სწორია.',
   ],
 
   cpp: [
     {
-      caption: 'Range-add updates, one final materialisation',
+      caption: 'დიაპაზონური მიმატება, ერთი საბოლოო მატერიალიზაცია',
       code: `#include <bits/stdc++.h>
 using namespace std;
 
@@ -204,7 +206,7 @@ int main() {
 }`,
     },
     {
-      caption: '2D difference array — add v to a submatrix in O(1)',
+      caption: '2D difference array — +v ქვემატრიცას O(1)-ში',
       code: `// stamp the rectangle (r1,c1)-(r2,c2) with +v
 d[r1][c1]         += v;
 d[r1][c2 + 1]     -= v;
@@ -214,27 +216,27 @@ d[r2 + 1][c2 + 1] += v;
     },
   ],
 
-  time: 'O(1) per range update, O(n) for the single final pass. Total O(n + q).',
-  space: 'O(n) for the difference array (O(n·m) in 2D).',
+  time: 'O(1) თითო დიაპაზონურ განახლებაზე, O(n) ერთ საბოლოო გავლაზე. სულ O(n + q).',
+  space: 'O(n) სხვაობათა მასივისთვის (O(n·m) 2D-ში).',
 
   mistakes: [
-    'Sizing `d` as length n and then writing `d[r+1]` when r = n-1 — out of bounds. Use n+1.',
-    'Reading a value mid-stream: the array is only valid after the prefix-sum pass. Interleaved reads need a Fenwick tree.',
-    'Forgetting `long long` when many updates stack on one cell.',
-    '2D: getting the inclusion–exclusion signs wrong on the four corner stamps.',
+    '`d`-ის სიგრძის n-ად აღება და მერე `d[r+1]`-ის ჩაწერა r = n−1-ზე — მასივის საზღვრებს გარეთ. გამოიყენე n+1.',
+    'მნიშვნელობის წაკითხვა შუაში: მასივი ვალიდურია მხოლოდ prefix-sum გავლის შემდეგ. შუა წაკითხვებს Fenwick-ის ხე სჭირდება.',
+    '`long long`-ის დავიწყება, როცა ბევრი განახლება ერთ უჯრედზე ეწყობა.',
+    '2D: ჩართვა-გამორიცხვის ნიშნების არევა ოთხ კუთხურ „შტამპზე".',
   ],
 
   edgeCases: [
-    'r == n-1: the `-v` lands at d[n], which exists only because d has size n+1.',
-    'l == r: a single-element update, d[l] += v and d[l+1] -= v.',
-    'Overlapping updates: they simply add — no special handling.',
-    'v negative: range subtraction, identical mechanics.',
+    'r == n−1: `−v` ხვდება d[n]-ს, რომელიც არსებობს მხოლოდ იმიტომ, რომ d-ის სიგრძე n+1-ია.',
+    'l == r: ერთელემენტიანი განახლება, d[l] += v და d[l+1] −= v.',
+    'გადამფარავი განახლებები: უბრალოდ იკრიბება — განსაკუთრებული დამუშავების გარეშე.',
+    'v უარყოფითი: დიაპაზონური გამოკლება, იდენტური მექანიკა.',
   ],
 
   exercises: [
-    'Given q intervals [l, r], output for each position how many intervals cover it.',
-    'Simulate a car-pooling schedule: given (passengers, start, end) trips, does capacity hold at every point?',
-    'Apply range updates, then answer a few range-sum queries — combine with prefix sums.',
+    'მოცემულ q ინტერვალზე [l, r], დაბეჭდე თითო პოზიციისთვის რამდენი ინტერვალი ფარავს მას.',
+    'ავტოგაზიარების გრაფიკის სიმულაცია: (მგზავრები, დაწყება, დასრულება) მოგზაურობებზე, ტევადობა ყველგან ინახება?',
+    'გამოიყენე დიაპაზონური განახლებები, მერე უპასუხე რამდენიმე დიაპაზონურ ჯამს — prefix sum-თან წყვილში.',
   ],
 
   practice: [
@@ -244,10 +246,10 @@ d[r2 + 1][c2 + 1] += v;
   ],
 
   combineNote:
-    'Difference array in, prefix sum out — they are one technique used in two ' +
-    'directions. In 2D, a difference array plus a 2D prefix sum gives O(1) ' +
-    'submatrix updates. When reads and updates interleave, this pattern is what ' +
-    'a Fenwick tree generalises.',
+    'სხვაობათა მასივი შედის, prefix sum გამოდის — ეს ერთი ტექნიკაა ორი ' +
+    'მიმართულებით. 2D-ში difference array + 2D prefix sum იძლევა O(1) ქვემატრიცულ ' +
+    'განახლებას. როცა წაკითხვები და განახლებები ერთმანეთშია გადახლართული, სწორედ ' +
+    'ამ პატერნს განაზოგადებს Fenwick-ის ხე.',
 
   prerequisites: ['prefix-sums'],
   related: ['prefix-sums', 'fenwick-tree'],
@@ -258,59 +260,59 @@ d[r2 + 1][c2 + 1] += v;
 const frequencyArrays: CtTopic = {
   id: 'frequency-arrays',
   title: 'Frequency Arrays / Counting',
-  titleKa: 'სიხშირის მასივები',
+  titleKa: 'სიხშირეთა მასივი / დათვლა',
   category: 'foundation',
   priority: 'essential',
   order: 3,
 
   whatIs:
-    'An array `cnt` indexed by *value* rather than position: `cnt[x]` is how many ' +
-    'times `x` appears. Building it is one O(n) pass; afterwards any "how many of ' +
-    'value x" question is O(1), and a prefix sum over `cnt` answers "how many ' +
-    'values ≤ x".',
+    'მასივი `cnt`, ინდექსირებული *მნიშვნელობით* და არა პოზიციით: `cnt[x]` არის ' +
+    'რამდენჯერ გვხვდება `x`. აგება ერთი O(n) გავლაა; შემდეგ ნებისმიერი „რამდენი x" ' +
+    'O(1)-ია, ხოლო `cnt`-ზე prefix sum პასუხობს „რამდენი მნიშვნელობაა ≤ x".',
 
   intuition:
-    'Stop scanning the data to answer questions about it. Bucket each element ' +
-    'once, then read the buckets.',
+    'შეწყვიტე მონაცემების სკანირება მასზე კითხვის საპასუხოდ. თითო ელემენტი ' +
+    'ერთხელ ჩააგდე კალათაში, მერე კალათებს კითხულობ.',
 
   whyItWorks:
-    'Array indexing is O(1). If the value range is small enough to be an index ' +
-    '(say 0..10^6), a direct-address table beats a hash map on constant factor ' +
-    'and beats sorting on asymptotics for counting tasks. Counting sort and ' +
-    'histogram queries are the same idea.',
+    'მასივის ინდექსირება O(1)-ია. თუ მნიშვნელობათა დიაპაზონი საკმარისად პატარაა ' +
+    'ინდექსად (მაგ. 0..10^6), პირდაპირი მისამართის ცხრილი აჯობებს hash map-ს ' +
+    'მუდმივი ფაქტორით და დახარისხებას ასიმპტოტიკით — დათვლის ამოცანებზე. ' +
+    'counting sort და ჰისტოგრამული მოთხოვნები ერთი და იგივე იდეაა.',
 
   naive:
-    'Answering "how many elements equal x" or "how many are ≤ x" by scanning is ' +
-    'O(n) per query. Sorting first gives O(n log n) then O(log n) per query via ' +
-    'binary search. A frequency array gives O(n + V) build (V = value range) and ' +
-    'O(1) per query — better when V is not much larger than n.',
+    '„რამდენი ელემენტია x-ის ტოლი" ან „რამდენია ≤ x" სკანირებით O(n)-ია თითო ' +
+    'მოთხოვნაზე. ჯერ დახარისხება იძლევა O(n log n)-ს, მერე O(log n)-ს თითო ' +
+    'მოთხოვნაზე binary search-ით. სიხშირეთა მასივი იძლევა O(n + V) აგებას ' +
+    '(V = მნიშვნელობათა დიაპაზონი) და O(1)-ს თითო მოთხოვნაზე — უკეთესია, როცა V ' +
+    'დიდად არ აღემატება n-ს.',
 
   whenToUse: [
-    'Values lie in a known, modest range (fits as an array index)',
-    'You need counts, "k-th smallest", or "number of values in [lo, hi]" repeatedly',
-    'Counting sort: stable sort of small integers in O(n + V)',
-    'Character counts (fixed alphabet of 26 or 128)',
+    'მნიშვნელობები ცნობილ, ზომიერ დიაპაზონშია (მასივის ინდექსად ეტევა)',
+    'გჭირდება რაოდენობები, „k-ური უმცირესი" ან „რამდენი მნიშვნელობაა [lo, hi]-ში" გამეორებით',
+    'counting sort: პატარა მთელების სტაბილური დახარისხება O(n + V)-ში',
+    'სიმბოლოების დათვლა (ფიქსირებული ანბანი 26 ან 128)',
   ],
 
   signals: [
-    '"array elements are between 1 and 10^6" — a bounded value range',
-    '"count pairs / elements with value equal to ..." ',
-    '"how many numbers are less than or equal to x"',
-    '"anagram", "permutation", "same multiset" — compare frequency arrays',
+    '„მასივის ელემენტები 1-სა და 10^6-ს შორისაა" — შემოსაზღვრული მნიშვნელობათა დიაპაზონი',
+    '„დაითვალე წყვილები / ელემენტები მნიშვნელობით ტოლი ..."',
+    '„რამდენი რიცხვია x-ზე ნაკლები ან ტოლი"',
+    '„ანაგრამა", „გადანაცვლება", „ერთი და იგივე მულტისიმრავლე" — შეადარე სიხშირეთა მასივები',
   ],
 
   walkthrough: [
-    'a = [2, 5, 2, 1, 5, 2], values in 0..5.',
-    'cnt after one pass: cnt[1] = 1, cnt[2] = 3, cnt[5] = 2, rest 0.',
-    '"How many 2s?"  → cnt[2] = 3, O(1).',
-    'Prefix-sum cnt → pre = [0, 1, 4, 4, 4, 6] (pre[v] = count of values ≤ v).',
-    '"How many values ≤ 3?"  → pre[3] = 4.',
-    '"3rd smallest element?"  → smallest v with pre[v] ≥ 3 is v = 2 (pre[2] = 4).',
+    'a = [2, 5, 2, 1, 5, 2], მნიშვნელობები 0..5-ში.',
+    'cnt ერთი გავლის შემდეგ: cnt[1] = 1, cnt[2] = 3, cnt[5] = 2, დანარჩენი 0.',
+    '„რამდენი 2-ია?"  → cnt[2] = 3, O(1).',
+    'cnt-ის prefix sum → pre = [0, 1, 4, 4, 4, 6] (pre[v] = ≤ v მნიშვნელობების რაოდენობა).',
+    '„რამდენი მნიშვნელობაა ≤ 3?"  → pre[3] = 4.',
+    '„მე-3 უმცირესი ელემენტი?"  → უმცირესი v, სადაც pre[v] ≥ 3, არის v = 2 (pre[2] = 4).',
   ],
 
   cpp: [
     {
-      caption: 'Frequency array + prefix counts',
+      caption: 'სიხშირეთა მასივი + პრეფიქსული რაოდენობები',
       code: `#include <bits/stdc++.h>
 using namespace std;
 
@@ -336,7 +338,7 @@ int main() {
 }`,
     },
     {
-      caption: 'Counting sort — stable, O(n + V)',
+      caption: 'counting sort — სტაბილური, O(n + V)',
       code: `vector<int> countingSort(const vector<int>& a, int V) {
     vector<int> cnt(V + 1, 0);
     for (int x : a) cnt[x]++;
@@ -349,27 +351,27 @@ int main() {
     },
   ],
 
-  time: 'O(n + V) to build, O(1) per exact-count query, O(1) per range-count after a prefix pass.',
-  space: 'O(V) — the value range, not the input size. This is the constraint that decides applicability.',
+  time: 'O(n + V) აგება, O(1) თითო ზუსტ-რაოდენობის მოთხოვნაზე, O(1) თითო დიაპაზონურ დათვლაზე prefix-ის შემდეგ.',
+  space: 'O(V) — მნიშვნელობათა დიაპაზონი, არა შესატანის ზომა. სწორედ ეს განსაზღვრავს გამოსაყენებლობას.',
 
   mistakes: [
-    'Negative or offset values: shift by a constant so the minimum maps to index 0.',
-    'V too large to allocate (values up to 10^18) — fall back to a hash map or coordinate compression.',
-    'Using `int` for prefix counts when n is large and many elements share a value.',
-    'Counting sort: a forward final pass instead of reverse breaks stability.',
+    'უარყოფითი ან წანაცვლებული მნიშვნელობები: გადაწიე მუდმივით ისე, რომ მინიმუმი 0 ინდექსზე მოხვდეს.',
+    'V ძალიან დიდია გამოსაყოფად (მნიშვნელობები 10^18-მდე) — გადადი hash map-ზე ან coordinate compression-ზე.',
+    '`int`-ის გამოყენება პრეფიქსული რაოდენობებისთვის, როცა n დიდია და ბევრი ელემენტი ერთ მნიშვნელობას იზიარებს.',
+    'counting sort: წინ გავლა უკან გავლის ნაცვლად საბოლოო ეტაპზე არღვევს სტაბილურობას.',
   ],
 
   edgeCases: [
-    'A value that never appears: cnt[x] = 0, queries still correct.',
-    'All elements equal: cnt has a single non-zero bucket.',
-    'x outside [0, V): must be filtered or the index is invalid.',
-    'n = 0: cnt is all zeros, every count query returns 0.',
+    'მნიშვნელობა, რომელიც არასდროს ჩნდება: cnt[x] = 0, მოთხოვნები მაინც სწორია.',
+    'ყველა ელემენტი ტოლი: cnt-ს ერთი არანულოვანი კალათა აქვს.',
+    'x [0, V)-ის გარეთ: უნდა გაიფილტროს, თორემ ინდექსი არავალიდურია.',
+    'n = 0: cnt სულ ნულია, თითო დათვლა 0-ს აბრუნებს.',
   ],
 
   exercises: [
-    'Check if two strings are anagrams by comparing 26-length frequency arrays.',
-    'Given an array with values in [1, 100], answer 10^5 queries of "count of values in [lo, hi]".',
-    'Find the smallest missing positive integer using a boolean frequency array.',
+    'შეამოწმე, ორი სტრიქონი ანაგრამაა თუ არა — 26-სიგრძიანი სიხშირეთა მასივების შედარებით.',
+    'მასივზე მნიშვნელობებით [1, 100]-ში უპასუხე 10^5 მოთხოვნას „რამდენი მნიშვნელობაა [lo, hi]-ში".',
+    'იპოვე უმცირესი გამოტოვებული დადებითი მთელი — ლოგიკური სიხშირეთა მასივით.',
   ],
 
   practice: [
@@ -379,10 +381,11 @@ int main() {
   ],
 
   combineNote:
-    'A frequency array *is* a prefix-sum problem waiting to happen: build counts, ' +
-    'then prefix them for range/order-statistic queries. When the value range is ' +
-    'too big, coordinate compression shrinks it back into an index. Sliding-window ' +
-    'problems over a bounded alphabet keep a live frequency array as the window moves.',
+    'სიხშირეთა მასივი *არის* prefix-sum ამოცანა, რომელიც ელოდება: ააგე რაოდენობები, ' +
+    'მერე დააპრეფიქსე ისინი დიაპაზონური / რიგითი სტატისტიკის მოთხოვნებისთვის. როცა ' +
+    'მნიშვნელობათა დიაპაზონი ძალიან დიდია, coordinate compression მას უკან ინდექსში ' +
+    'აბრუნებს. sliding window ამოცანები შემოსაზღვრულ ანბანზე ინახავენ ცოცხალ ' +
+    'სიხშირეთა მასივს, სანამ ფანჯარა მოძრაობს.',
 
   prerequisites: ['prefix-sums'],
   related: ['prefix-sums', 'coordinate-compression', 'sorting-techniques'],
@@ -393,61 +396,62 @@ int main() {
 const twoPointers: CtTopic = {
   id: 'two-pointers',
   title: 'Two Pointers',
-  titleKa: 'ორი მაჩვენებელი',
+  titleKa: 'ორი მაჩვენებლის მეთოდი',
   category: 'foundation',
   priority: 'essential',
   order: 4,
 
   whatIs:
-    'Two indices that move through a sequence in a coordinated way — often from ' +
-    'both ends toward the middle, or both forward at different speeds — so the ' +
-    'work is one linear pass instead of a nested loop.',
+    'ორი ინდექსი, რომლებიც მიმდევრობაზე კოორდინირებულად მოძრაობენ — ხშირად ორივე ' +
+    'ბოლოდან შუისკენ, ან ორივე წინ სხვადასხვა სიჩქარით — ისე, რომ სამუშაო ერთი ' +
+    'წრფივი გავლაა ჩადგმული ციკლის ნაცვლად.',
 
   intuition:
-    'When advancing one pointer can only ever push the other in one direction, ' +
-    'you never need to go back. The double loop collapses because most (i, j) ' +
-    'pairs can be skipped without checking.',
+    'როცა ერთი მაჩვენებლის წინ წაწევა მეორეს მხოლოდ ერთი მიმართულებით უბიძგებს, ' +
+    'უკან დაბრუნება არასდროსაა საჭირო. ორმაგი ციკლი იშლება, რადგან (i, j) ' +
+    'წყვილების უმეტესობა შემოწმების გარეშე გამოტოვება.',
 
   whyItWorks:
-    'It relies on monotonicity. Example: in a sorted array, if a[i] + a[j] is too ' +
-    'large, then pairing a[i] with anything above a[j] is also too large, so move ' +
-    'j down; if too small, move i up. Each pointer travels one way only, so the ' +
-    'total number of moves is at most 2n even though the pair space is quadratic.',
+    'ეყრდნობა მონოტონურობას. მაგალითი: დახარისხებულ მასივში, თუ a[i] + a[j] ' +
+    'მეტისმეტად დიდია, a[i]-ს დაწყვილება a[j]-ზე მაღალ ნებისმიერთანაც დიდია, ' +
+    'ამიტომ j ქვევით; თუ პატარაა — i ზევით. თითო მაჩვენებელი მხოლოდ ერთი ' +
+    'მიმართულებით მოძრაობს, ამიტომ ნაბიჯების ჯამი მაქსიმუმ 2n-ია, თუმცა წყვილთა ' +
+    'სივრცე კვადრატულია.',
 
   naive:
-    'Checking all pairs (i, j) to find one with a target property is O(n^2). Two ' +
-    'pointers exploit an ordering so that after comparing (i, j) you know which ' +
-    'pointer to move, discarding a whole row or column of the pair matrix each ' +
-    'step. That drops O(n^2) to O(n) (plus O(n log n) if a sort is needed first).',
+    'ყველა წყვილის (i, j) შემოწმება სამიზნე თვისების საპოვნელად O(n^2)-ია. ორი ' +
+    'მაჩვენებელი იყენებს დალაგებას ისე, რომ (i, j)-ის შედარების შემდეგ იცი, ' +
+    'რომელი მაჩვენებელი გადაწიო, და თითო ნაბიჯზე წყვილთა მატრიცის მთელ სტრიქონს ' +
+    'ან სვეტს აგდებ. ეს O(n^2)-ს O(n)-მდე ამცირებს (პლუს O(n log n), თუ ჯერ დახარისხებაა საჭირო).',
 
   whenToUse: [
-    'The array (or the relevant key) is sorted, or can be sorted',
-    'Searching for a pair / triple with a sum or difference condition',
-    'Merging two sorted sequences',
-    'Partitioning in place (Dutch-flag, quicksort partition)',
-    'Comparing / matching two sequences (is s a subsequence of t?)',
+    'მასივი (ან შესაბამისი გასაღები) დახარისხებულია ან შეიძლება დაიხარისხოს',
+    'ეძებ წყვილს / სამეულს ჯამის ან სხვაობის პირობით',
+    'ორი დახარისხებული მიმდევრობის შერწყმა',
+    'ადგილზე დაყოფა (Dutch-flag, quicksort partition)',
+    'ორი მიმდევრობის შედარება / დამთხვევა (არის s ქვემიმდევრობა t-ში?)',
   ],
 
   signals: [
-    '"sorted array" + "find two elements such that ..."',
-    '"pair with sum equal to / closest to target"',
-    '"merge", "in place", "without extra space"',
-    '"is one string a subsequence of another"',
-    'A brute-force pair search where the array happens to be sorted',
+    '„დახარისხებული მასივი" + „იპოვე ორი ელემენტი ისეთი, რომ ..."',
+    '„წყვილი ჯამით სამიზნის ტოლი / უახლოესი"',
+    '„შერწყი", „ადგილზე", „დამატებითი მეხსიერების გარეშე"',
+    '„არის ერთი სტრიქონი მეორის ქვემიმდევრობა"',
+    'უხეში წყვილთა ძებნა, სადაც მასივი შემთხვევით დახარისხებულია',
   ],
 
   walkthrough: [
-    'Sorted a = [1, 3, 4, 6, 8, 11], target sum = 10.',
-    'i = 0 (val 1), j = 5 (val 11). 1 + 11 = 12 > 10 → move j left.',
-    'i = 0 (1), j = 4 (8). 1 + 8 = 9 < 10 → move i right.',
-    'i = 1 (3), j = 4 (8). 3 + 8 = 11 > 10 → move j left.',
-    'i = 1 (3), j = 3 (6). 3 + 6 = 9 < 10 → move i right.',
-    'i = 2 (4), j = 3 (6). 4 + 6 = 10 → found. Total pointer moves: 5, not 15 pair checks.',
+    'დახარისხებული a = [1, 3, 4, 6, 8, 11], სამიზნე ჯამი = 10.',
+    'i = 0 (მნ. 1), j = 5 (მნ. 11). 1 + 11 = 12 > 10 → j მარცხნივ.',
+    'i = 0 (1), j = 4 (8). 1 + 8 = 9 < 10 → i მარჯვნივ.',
+    'i = 1 (3), j = 4 (8). 3 + 8 = 11 > 10 → j მარცხნივ.',
+    'i = 1 (3), j = 3 (6). 3 + 6 = 9 < 10 → i მარჯვნივ.',
+    'i = 2 (4), j = 3 (6). 4 + 6 = 10 → ნაპოვნია. სულ 5 ნაბიჯი, არა 15 წყვილის შემოწმება.',
   ],
 
   cpp: [
     {
-      caption: 'Opposite ends: pair with a given sum in a sorted array',
+      caption: 'საპირისპირო ბოლოები: წყვილი მოცემული ჯამით დახარისხებულ მასივში',
       code: `#include <bits/stdc++.h>
 using namespace std;
 
@@ -469,7 +473,7 @@ int main() {
 }`,
     },
     {
-      caption: 'Same direction: is s a subsequence of t?',
+      caption: 'ერთი მიმართულება: არის s ქვემიმდევრობა t-ში?',
       code: `bool isSubsequence(const string& s, const string& t) {
     int i = 0;                          // pointer into s
     for (int j = 0; j < (int)t.size() && i < (int)s.size(); j++)
@@ -479,28 +483,28 @@ int main() {
     },
   ],
 
-  time: 'O(n) for the scan, O(n log n) overall when the input must be sorted first.',
-  space: 'O(1) extra — the pointers only. Sorting may add O(log n) stack for the recursion.',
+  time: 'O(n) გავლისთვის, O(n log n) სულ, როცა შესატანი ჯერ უნდა დაიხარისხოს.',
+  space: 'O(1) დამატებით — მხოლოდ მაჩვენებლები. დახარისხებამ შეიძლება O(log n) სტეკი დაამატოს.',
 
   mistakes: [
-    'Using two pointers on unsorted data when the logic needs monotonicity — the answer is silently wrong.',
-    'Loop condition `i <= j` when a pair needs two distinct indices — use `i < j`.',
-    'Moving both pointers in the same step and skipping the valid pair between them.',
-    'Forgetting that after sorting, the returned indices are into the *sorted* array, not the original.',
+    'ორი მაჩვენებლის გამოყენება დაუხარისხებელ მონაცემზე, როცა ლოგიკას მონოტონურობა სჭირდება — პასუხი უჩუმრად არასწორია.',
+    'ციკლის პირობა `i <= j`, როცა წყვილს ორი განსხვავებული ინდექსი სჭირდება — გამოიყენე `i < j`.',
+    'ორივე მაჩვენებლის ერთ ნაბიჯზე გადაწევა და მათ შორის ვალიდური წყვილის გამოტოვება.',
+    'იმის დავიწყება, რომ დახარისხების შემდეგ დაბრუნებული ინდექსები *დახარისხებულ* მასივშია, არა საწყისში.',
   ],
 
   edgeCases: [
-    'n < 2: no pair exists — return early.',
-    'Duplicate values equal to target/2: make sure `i < j` still allows the pair.',
-    'All elements identical: pointers meet in the middle correctly.',
-    'Target unreachable: pointers cross, loop exits, report "none".',
+    'n < 2: წყვილი არ არსებობს — გამოდი ადრე.',
+    'target/2-ის ტოლი გამეორებული მნიშვნელობები: დარწმუნდი, რომ `i < j` მაინც უშვებს წყვილს.',
+    'ყველა ელემენტი იდენტური: მაჩვენებლები შუაში სწორად ხვდებიან.',
+    'target მიუწვდომელია: მაჩვენებლები იკვეთებიან, ციკლი მთავრდება, გამოაცხადე „არცერთი".',
   ],
 
   exercises: [
-    'Given a sorted array, count pairs with sum < target in O(n).',
-    'Merge two sorted arrays into one without a library merge.',
-    'Move all zeros to the end of an array in place, keeping the order of non-zeros.',
-    '3-sum: fix one element, two-pointer the rest — O(n^2) total.',
+    'დახარისხებულ მასივზე დაითვალე წყვილები ჯამით < target — O(n)-ში.',
+    'შერწყი ორი დახარისხებული მასივი ერთში, ბიბლიოთეკის merge-ის გარეშე.',
+    'გადაიტანე ყველა ნული მასივის ბოლოში ადგილზე, არანულების რიგის შენარჩუნებით.',
+    '3-sum: დააფიქსირე ერთი ელემენტი, დანარჩენს ორ მაჩვენებელი — სულ O(n^2).',
   ],
 
   practice: [
@@ -510,11 +514,11 @@ int main() {
   ],
 
   combineNote:
-    'Two pointers is the parent pattern of the sliding window (both pointers move ' +
-    'forward, the window is the gap between them). It pairs with sorting almost ' +
-    'always, and with a frequency array when the "condition" is about how many ' +
-    'distinct values sit between the pointers. Fixing one index and two-pointering ' +
-    'the rest is the standard way to add a dimension (2Sum → 3Sum).',
+    'ორი მაჩვენებელი არის sliding window-ის მშობელი პატერნი (ორივე მაჩვენებელი წინ ' +
+    'მოძრაობს, ფანჯარა მათ შორის სივრცეა). თითქმის ყოველთვის დახარისხებას ერწყმის, ' +
+    'და სიხშირეთა მასივს, როცა „პირობა" ეხება რამდენი განსხვავებული მნიშვნელობაა ' +
+    'მაჩვენებლებს შორის. ერთი ინდექსის დაფიქსირება და დანარჩენზე ორი მაჩვენებელი — ' +
+    'ეს არის განზომილების დამატების სტანდარტული ხერხი (2Sum → 3Sum).',
 
   prerequisites: ['frequency-arrays'],
   related: ['sliding-window', 'sorting-techniques', 'binary-search'],
@@ -525,59 +529,60 @@ int main() {
 const slidingWindow: CtTopic = {
   id: 'sliding-window',
   title: 'Sliding Window',
-  titleKa: 'მოცურავე ფანჯარა',
+  titleKa: 'მოძრავი ფანჯარა',
   category: 'foundation',
   priority: 'essential',
   order: 5,
 
   whatIs:
-    'A contiguous subarray `[l, r]` maintained as `r` advances one step at a time. ' +
-    '`l` is pulled forward only as far as needed to keep the window valid. Some ' +
-    'aggregate (sum, distinct count, max frequency) is updated incrementally on ' +
-    'each move rather than recomputed.',
+    'მიმდევრობითი ქვემასივი `[l, r]`, რომელიც შენარჩუნებულია `r`-ის თითო ნაბიჯით ' +
+    'წინ წაწევისას. `l` წინ იწევა მხოლოდ იმდენად, რამდენადაც საჭიროა ფანჯრის ' +
+    'ვალიდურობის შესანარჩუნებლად. რაღაც აგრეგატი (ჯამი, განსხვავებულთა რაოდენობა, ' +
+    'მაქს. სიხშირე) თითო ნაბიჯზე ინკრემენტულად ახლდება, არა თავიდან იანგარიშება.',
 
   intuition:
-    'The answer for window ending at `r` reuses almost all of the work done for ' +
-    '`r - 1`: one element enters on the right, zero or more leave on the left.',
+    '`r`-ზე დამთავრებული ფანჯრის პასუხი თითქმის მთელ სამუშაოს იყენებს `r − 1`-დან: ' +
+    'ერთი ელემენტი შედის მარჯვნიდან, ნული ან მეტი გამოდის მარცხნიდან.',
 
   whyItWorks:
-    'For "longest/shortest valid window" problems, validity is monotone in `l`: ' +
-    'if `[l, r]` is valid then `[l+1, r]` is too (or the reverse). So `l` never ' +
-    'needs to move backward — across the whole run it advances at most n times, ' +
-    'and `r` advances exactly n times. O(n) even though the window resizes.',
+    '„უგრძესი/უმოკლესი ვალიდური ფანჯრის" ამოცანებში ვალიდურობა `l`-ის მიმართ ' +
+    'მონოტონურია: თუ `[l, r]` ვალიდურია, `[l+1, r]`-ც (ან პირიქით). ამიტომ `l`-ს ' +
+    'უკან დაბრუნება არასდროსაა საჭირო — მთელ გავლაზე ის მაქსიმუმ n-ჯერ იწევს, ' +
+    '`r` კი ზუსტად n-ჯერ. O(n), თუმცა ფანჯარა იცვლის ზომას.',
 
   naive:
-    'Enumerating every subarray and checking it is O(n^2) subarrays × O(n) check ' +
-    '= O(n^3), or O(n^2) with a prefix sum. The sliding window keeps a running ' +
-    'summary of the current window and slides it, so each element is added once ' +
-    'and removed once: O(n) total.',
+    'ყველა ქვემასივის ჩამოთვლა და შემოწმება O(n^2) ქვემასივი × O(n) შემოწმება = ' +
+    'O(n^3), ან O(n^2) prefix sum-ით. მოძრავი ფანჯარა ინახავს მიმდინარე ფანჯრის ' +
+    'მიმდინარე შეჯამებას და ასრიალებს მას, ამიტომ თითო ელემენტი ერთხელ ემატება და ' +
+    'ერთხელ იშლება: სულ O(n).',
 
   whenToUse: [
-    '"Longest / shortest / count of contiguous subarrays such that <condition>"',
-    'The condition is monotone: growing the window can only make it "more invalid", shrinking "more valid" (or vice versa)',
-    'Fixed-size window: "every subarray of length k" — a special, simpler case',
-    'All values non-negative (for sum conditions) — negatives break monotonicity, use prefix sum + map instead',
+    '„უგრძესი / უმოკლესი / რაოდენობა მიმდევრობითი ქვემასივებისა, რომ <პირობა>"',
+    'პირობა მონოტონურია: ფანჯრის გაზრდა მას მხოლოდ „უფრო არავალიდურს" ხდის, შემცირება — „უფრო ვალიდურს" (ან პირიქით)',
+    'ფიქსირებული ზომის ფანჯარა: „ყველა k-სიგრძიანი ქვემასივი" — უფრო მარტივი კერძო შემთხვევა',
+    'ყველა მნიშვნელობა არაუარყოფითია (ჯამის პირობებზე) — უარყოფითები არღვევს მონოტონურობას, გამოიყენე prefix sum + hash map',
   ],
 
   signals: [
-    '"longest substring / subarray with at most k distinct ..."',
-    '"smallest subarray with sum ≥ target"',
-    '"maximum sum of any k consecutive elements"',
-    '"contiguous" + an aggregate condition + non-negative values',
+    '„უგრძესი ქვესტრიქონი / ქვემასივი მაქსიმუმ k განსხვავებულით ..."',
+    '„უმცირესი ქვემასივი ჯამით ≥ target"',
+    '„k მიმდევრობითი ელემენტის მაქსიმალური ჯამი"',
+    '„მიმდევრობითი" + აგრეგატის პირობა + არაუარყოფითი მნიშვნელობები',
   ],
 
   walkthrough: [
-    'a = [2, 1, 5, 1, 3, 2], find the shortest subarray with sum ≥ 7.',
-    'r = 0: win sum 2. r = 1: 3. r = 2: 8 ≥ 7 → try to shrink: drop a[0]=2 → 6 < 7, stop. best len = 3 ([2,1,5]).',
-    'r = 3: sum 6 + 1 = 7 ≥ 7 → shrink: drop a[1]=1 → 6, stop. window [5,1] ... wait sum is 5+1+1=7, drop a[1] gives 5+1+1? re-track: l=1 now, sum a[1..3]=1+5+1=7, drop a[1]=1 → a[2..3]=6 <7 stop. len 3.',
-    'r = 4: add 3 → a[2..4] = 5+1+3 = 9 ≥ 7 → shrink: drop a[2]=5 → 4 < 7 stop. len 3.',
-    'r = 5: add 2 → a[3..5] = 1+3+2 = 6 < 7. window stays.',
-    'Answer: length 3. Each index entered and left the window once.',
+    'a = [2, 1, 5, 1, 3, 2], ვეძებთ უმოკლეს ქვემასივს ჯამით ≥ 7.',
+    'r = 0: ჯამი 2. r = 1: ჯამი 3. ორივე < 7.',
+    'r = 2: ჯამი 8 ≥ 7. შემცირება: 8 − a[0] = 6 < 7, ვჩერდებით. საუკ. სიგრძე = 3 ([2,1,5]).',
+    'r = 3: ჯამი 9 ≥ 7. შემცირება: 9 − a[0] = 7 ≥ 7 → l = 1, ჯამი 7; 7 − a[1] = 6 < 7, ვჩერდებით. სიგრძე 3 ([1,5,1]).',
+    'r = 4: ჯამი 10 ≥ 7. შემცირება: 10 − a[1] = 9 ≥ 7 → l = 2, ჯამი 9; 9 − a[2] = 4 < 7, ვჩერდებით. სიგრძე 3 ([5,1,3]).',
+    'r = 5: ჯამი 11 ≥ 7. შემცირება: 11 − a[2] = 6 < 7, ვჩერდებით. სიგრძე 4 — არ აუმჯობესებს.',
+    'პასუხი: 3. თითო ინდექსი ერთხელ შევიდა და ერთხელ გავიდა ფანჯრიდან.',
   ],
 
   cpp: [
     {
-      caption: 'Variable window: shortest subarray with sum ≥ target',
+      caption: 'ცვლადი ფანჯარა: უმოკლესი ქვემასივი ჯამით ≥ target',
       code: `#include <bits/stdc++.h>
 using namespace std;
 
@@ -601,7 +606,7 @@ int main() {
 }`,
     },
     {
-      caption: 'Variable window: longest substring with at most k distinct characters',
+      caption: 'ცვლადი ფანჯარა: უგრძესი ქვესტრიქონი მაქსიმუმ k განსხვავებული სიმბოლოთი',
       code: `int longestAtMostKDistinct(const string& s, int k) {
     vector<int> cnt(256, 0);
     int distinct = 0, l = 0, best = 0;
@@ -618,30 +623,30 @@ int main() {
     },
   ],
 
-  time: 'O(n): every index is added once and removed at most once. O(1) or O(alphabet) per step.',
-  space: 'O(1) for a numeric aggregate; O(alphabet) or O(distinct) if a frequency map tracks the window.',
+  time: 'O(n): თითო ინდექსი ერთხელ ემატება და მაქსიმუმ ერთხელ იშლება. O(1) ან O(ანბანი) თითო ნაბიჯზე.',
+  space: 'O(1) რიცხვითი აგრეგატისთვის; O(ანბანი) ან O(განსხვავებულთა რ-ბა), თუ სიხშირეთა მასივი ფანჯარას აკონტროლებს.',
 
   mistakes: [
-    'Using a window when values can be negative — a longer window is no longer guaranteed to have a larger sum. Use prefix sums + a hash map.',
-    'Recomputing the aggregate from scratch each step — that is back to O(n^2).',
-    'Shrinking with `if` when a single entering element can invalidate the window by more than one — use `while`.',
-    'Fixed-size window: forgetting to remove `a[r-k]` when `r ≥ k`.',
-    'Off-by-one in the length `r - l + 1`.',
+    'ფანჯრის გამოყენება, როცა მნიშვნელობები უარყოფითი შეიძლება იყოს — გრძელ ფანჯარას აღარ აქვს გარანტირებულად დიდი ჯამი. გამოიყენე prefix sum + hash map.',
+    'აგრეგატის თავიდან თვლა თითო ნაბიჯზე — ეს ისევ O(n^2)-ია.',
+    'შემცირება `if`-ით, როცა ერთი შემოსული ელემენტი ფანჯარას ერთზე მეტით აფუჭებს — გამოიყენე `while`.',
+    'ფიქსირებული ფანჯარა: `a[r-k]`-ის მოშორების დავიწყება, როცა `r ≥ k`.',
+    'ერთით ცდომა სიგრძეში `r - l + 1`.',
   ],
 
   edgeCases: [
-    'No valid window ever forms — return -1 / 0 as the problem dictates.',
-    'The whole array is the answer — `l` never moves.',
-    'k = 0 for "at most k distinct" — only empty windows are valid.',
-    'Single element ≥ target — window of length 1.',
-    'All elements zero with target 0 — the shrink condition must be `>` not `≥` to avoid an empty window, depending on the exact task.',
+    'ვალიდური ფანჯარა არასდროს ყალიბდება — დააბრუნე −1 / 0, როგორც ამოცანა ითხოვს.',
+    'პასუხი მთელი მასივია — `l` არასდროს იძვრის.',
+    'k = 0 „მაქსიმუმ k განსხვავებულისთვის" — მხოლოდ ცარიელი ფანჯრებია ვალიდური.',
+    'ერთი ელემენტი ≥ target — 1-სიგრძიანი ფანჯარა.',
+    'ყველა ელემენტი ნული, target 0 — შემცირების პირობა უნდა იყოს `>` და არა `≥`, ცარიელი ფანჯრის ასაცილებლად (ზუსტ ამოცანაზეა დამოკიდებული).',
   ],
 
   exercises: [
-    'Maximum sum of any window of fixed size k.',
-    'Longest substring without repeating characters.',
-    'Count subarrays with exactly k distinct integers (hint: atMost(k) - atMost(k-1)).',
-    'Smallest window in s that contains all characters of t.',
+    'ფიქსირებული k ზომის ნებისმიერი ფანჯრის მაქსიმალური ჯამი.',
+    'უგრძესი ქვესტრიქონი განმეორებადი სიმბოლოების გარეშე.',
+    'დაითვალე ქვემასივები ზუსტად k განსხვავებული მთელით (მინიშნება: atMost(k) − atMost(k−1)).',
+    'უმცირესი ფანჯარა s-ში, რომელიც შეიცავს t-ის ყველა სიმბოლოს.',
   ],
 
   practice: [
@@ -651,11 +656,11 @@ int main() {
   ],
 
   combineNote:
-    'The sliding window is two pointers moving the same direction with the gap as ' +
-    'the object of interest. It keeps a live frequency array for alphabet ' +
-    'conditions. The "exactly k" trick reduces to two "at most" windows. When the ' +
-    'window aggregate is a max/min, a monotonic deque upgrades each step back to ' +
-    'amortised O(1).',
+    'მოძრავი ფანჯარა არის ორი მაჩვენებელი, რომლებიც ერთი მიმართულებით მოძრაობენ, ' +
+    'და ფანჯარა (მათ შორის ღრეჩო) არის ინტერესის ობიექტი. ის ინახავს ცოცხალ ' +
+    'სიხშირეთა მასივს ანბანურ პირობებზე. „ზუსტად k" ხრიკი ორ „მაქსიმუმ" ფანჯარამდე ' +
+    'დაიყვანება. როცა ფანჯრის აგრეგატი max/min-ია, მონოტონური deque თითო ნაბიჯს ' +
+    'უკან ამორტიზებულ O(1)-მდე აბრუნებს.',
 
   prerequisites: ['two-pointers'],
   related: ['two-pointers', 'frequency-arrays', 'monotonic-queue'],
@@ -668,58 +673,58 @@ int main() {
 const binarySearch: CtTopic = {
   id: 'binary-search',
   title: 'Binary Search',
-  titleKa: 'ბინარული ძებნა',
+  titleKa: 'ორობითი ძებნა',
   category: 'foundation',
   priority: 'essential',
   order: 6,
 
   whatIs:
-    'Repeatedly halve a search interval over a monotone predicate. If `f` is ' +
-    'false, false, ..., false, true, ..., true along the range, binary search ' +
-    'finds the false→true boundary in `O(log n)` probes instead of scanning.',
+    'ძებნის ინტერვალის განმეორებითი განახევრება მონოტონურ პრედიკატზე. თუ `f` ' +
+    'დიაპაზონზე არის false, false, ..., false, true, ..., true, binary search ' +
+    'პოულობს false→true საზღვარს `O(log n)` შემოწმებით, სკანირების ნაცვლად.',
 
   intuition:
-    'One probe at the midpoint tells you which half the answer is in, so half ' +
-    'the candidates disappear every step. You never look at both halves.',
+    'შუა წერტილში ერთი შემოწმება გეუბნება, პასუხი რომელ ნახევარშია, ამიტომ თითო ' +
+    'ნაბიჯზე კანდიდატების ნახევარი ქრება. ორივე ნახევარს არასდროს უყურებ.',
 
   whyItWorks:
-    'The predicate is monotone: once it flips from false to true it never flips ' +
-    'back, so the midpoint check is decisive — it eliminates an entire side. ' +
-    '`log2(n)` halvings take `n` candidates down to 1. `lower_bound` and ' +
-    '`upper_bound` are this idea applied to "first element ≥ x" and "first > x".',
+    'პრედიკატი მონოტონურია: როცა false-დან true-ზე გადადის, უკან აღარ ბრუნდება, ' +
+    'ამიტომ შუა წერტილის შემოწმება გადამწყვეტია — ის მთელ ერთ მხარეს გამორიცხავს. ' +
+    '`log2(n)` განახევრება `n` კანდიდატს 1-მდე ამცირებს. `lower_bound` და ' +
+    '`upper_bound` ამ იდეის გამოყენებაა „პირველი ელემენტი ≥ x" და „პირველი > x"-ზე.',
 
   naive:
-    'Scanning for the first element ≥ x, or the first index where a condition ' +
-    'holds, is `O(n)`. Done once per query or per candidate it becomes `O(n·q)` ' +
-    'or `O(n^2)` — too slow for `n, q ~ 2·10^5`. Binary search makes each such ' +
-    'lookup `O(log n)`, for `O(q log n)` or `O(n log n)` overall.',
+    'პირველი ელემენტის ძებნა ≥ x, ან პირველი ინდექსისა, სადაც პირობა სრულდება, ' +
+    '`O(n)`-ია. თითო მოთხოვნაზე ან თითო კანდიდატზე ეს `O(n·q)` ან `O(n^2)` ხდება — ' +
+    'ნელია `n, q ~ 2·10^5`-ისთვის. binary search თითო ასეთ ძებნას `O(log n)`-ს ' +
+    'ხდის, სულ `O(q log n)` ან `O(n log n)`.',
 
   whenToUse: [
-    'Sorted array + "find / count / locate value x or the boundary of a condition"',
-    'A monotone yes/no predicate over an integer range — the answer is "the smallest x that works"',
-    '`lower_bound` / `upper_bound` — first ≥ x, first > x; their difference is a count',
-    'Real-valued feasibility that is monotone — binary search on a `double` for a fixed iteration count',
+    'დახარისხებული მასივი + „იპოვე / დაითვალე / განათავსე მნიშვნელობა x ან პირობის საზღვარი"',
+    'მონოტონური კი/არა პრედიკატი მთელ დიაპაზონზე — პასუხი არის „უმცირესი x, რომელიც მუშაობს"',
+    '`lower_bound` / `upper_bound` — პირველი ≥ x, პირველი > x; მათი სხვაობა რაოდენობაა',
+    'ნამდვილრიცხვიანი მონოტონური მიღწევადობა — binary search `double`-ზე ფიქსირებული იტერაციებით',
   ],
 
   signals: [
-    '"sorted array" together with "find", "count occurrences of", "closest to"',
-    '"smallest / largest value such that <condition holds>"',
-    '"the array is sorted (or can be sorted) and you query it many times"',
-    'A monotone check where you want the exact tipping point',
+    '„დახარისხებული მასივი" + „იპოვე", „დაითვალე გამეორებები", „უახლოესი x-თან"',
+    '„უმცირესი / უდიდესი მნიშვნელობა ისეთი, რომ <პირობა სრულდება>"',
+    '„მასივი დახარისხებულია (ან შეიძლება დაიხარისხოს) და ბევრჯერ იძახებ მას"',
+    'მონოტონური შემოწმება, სადაც ზუსტი გადამრთველი წერტილი გინდა',
   ],
 
   walkthrough: [
-    'Sorted a = [2, 4, 4, 7, 9, 13]. Find the first index with a[i] ≥ 8.',
-    'Half-open interval [lo, hi) = [0, 6); the answer lives somewhere in [0, 6].',
-    'mid = 3, a[3] = 7 < 8 → the answer is to the right → lo = 4.',
-    'mid = 5, a[5] = 13 ≥ 8 → the answer is here or left → hi = 5.',
+    'დახარისხებული a = [2, 4, 4, 7, 9, 13]. იპოვე პირველი ინდექსი, სადაც a[i] ≥ 8.',
+    'ნახევრადღია ინტერვალი [lo, hi) = [0, 6); პასუხი სადღაც [0, 6]-შია.',
+    'mid = 3, a[3] = 7 < 8 → პასუხი მარჯვნივ → lo = 4.',
+    'mid = 5, a[5] = 13 ≥ 8 → პასუხი აქ ან მარცხნივ → hi = 5.',
     'mid = 4, a[4] = 9 ≥ 8 → hi = 4.',
-    'lo == hi == 4 → first index with a[i] ≥ 8 is 4. Three probes, not six.',
+    'lo == hi == 4 → პირველი ინდექსი a[i] ≥ 8-ით არის 4. სამი შემოწმება, არა ექვსი.',
   ],
 
   cpp: [
     {
-      caption: 'Boundary search on a sorted array (hand-rolled lower_bound)',
+      caption: 'საზღვრის ძებნა დახარისხებულ მასივში (ხელით დაწერილი lower_bound)',
       code: `#include <bits/stdc++.h>
 using namespace std;
 
@@ -741,11 +746,11 @@ int main() {
     // library equivalents:
     // lower_bound(a.begin(), a.end(), 4) - a.begin();
     // upper_bound(a.begin(), a.end(), 4) - a.begin();
-    cout << lb << " " << ub << "\n";
+    cout << lb << " " << ub << "\\n";
 }`,
     },
     {
-      caption: 'Generic "first true" template over an integer range',
+      caption: 'ზოგადი „first true" შაბლონი მთელ დიაპაზონზე',
       code: `// smallest m in [lo, hi] with ok(m) true, assuming ok is false...false,true...true
 long long firstTrue(long long lo, long long hi, function<bool(long long)> ok) {
     hi++;                                     // hi becomes an exclusive "definitely true" sentinel
@@ -760,31 +765,31 @@ long long firstTrue(long long lo, long long hi, function<bool(long long)> ok) {
   ],
 
   time:
-    'O(log n) per search. O(n log n) if the array must be sorted first. ' +
-    'Real-valued: a fixed ~100 iterations, or O(log((hi − lo) / eps)).',
-  space: 'O(1) extra.',
+    'O(log n) თითო ძებნაზე. O(n log n), თუ მასივი ჯერ უნდა დაიხარისხოს. ' +
+    'ნამდვილრიცხვიანი: ფიქსირებული ~100 იტერაცია, ან O(log((hi − lo) / eps)).',
+  space: 'O(1) დამატებით.',
 
   mistakes: [
-    '`mid = (lo + hi) / 2` overflows `int` when lo + hi exceeds INT_MAX. Always `lo + (hi - lo) / 2`.',
-    'Mixing interval conventions — `[lo, hi]` inclusive vs `[lo, hi)` half-open — causes infinite loops or off-by-one. Pick one and keep it for the whole function.',
-    'Binary searching a predicate that is not monotone — the result is silently wrong, not a crash.',
-    '`lower_bound` returns `end()` when nothing qualifies; dereferencing it is undefined behaviour.',
-    'Real-valued: looping while `lo < hi` on doubles may never terminate — loop a fixed number of times.',
+    '`mid = (lo + hi) / 2` გადაივსება (`int` overflow), როცა lo + hi აღემატება INT_MAX-ს. ყოველთვის `lo + (hi - lo) / 2`.',
+    'ინტერვალის კონვენციების არევა — `[lo, hi]` ჩათვლით vs `[lo, hi)` ნახევრადღია — იწვევს უსასრულო ციკლს ან ერთით ცდომას. აირჩიე ერთი და შეინარჩუნე მთელ ფუნქციაზე.',
+    'არამონოტონურ პრედიკატზე binary search — შედეგი უჩუმრად არასწორია, არა კრახი.',
+    '`lower_bound` აბრუნებს `end()`-ს, როცა არაფერი ჯდება; მისი დერეფერენსი undefined behaviour-ია.',
+    'ნამდვილრიცხვიანი: `lo < hi`-ზე ციკლი double-ებზე შეიძლება არასდროს დასრულდეს — გაატარე ფიქსირებული რაოდენობის იტერაცია.',
   ],
 
   edgeCases: [
-    'Empty array — returns index 0 / "not found".',
-    'All elements < x — `lower_bound` returns n.',
-    'All elements ≥ x — returns 0.',
-    'Duplicates of x — `lower_bound` gives the first, `upper_bound` the position after the last.',
-    'Single element — one probe decides it.',
+    'ცარიელი მასივი — აბრუნებს ინდექს 0-ს / „ვერ ვიპოვე".',
+    'ყველა ელემენტი < x — `lower_bound` აბრუნებს n-ს.',
+    'ყველა ელემენტი ≥ x — აბრუნებს 0-ს.',
+    'x-ის გამეორებები — `lower_bound` იძლევა პირველს, `upper_bound` — ბოლოს მომდევნო პოზიციას.',
+    'ერთი ელემენტი — ერთი შემოწმება წყვეტს.',
   ],
 
   exercises: [
-    'Count occurrences of x in a sorted array as `upper_bound - lower_bound`.',
-    'Find the element of a sorted array closest to x.',
-    'Find the peak of a bitonic array (increasing then decreasing) by binary searching the slope.',
-    'Decide whether x appears in a matrix whose rows and columns are each sorted.',
+    'დაითვალე x-ის გამეორებები დახარისხებულ მასივში როგორც `upper_bound - lower_bound`.',
+    'იპოვე დახარისხებული მასივის x-თან უახლოესი ელემენტი.',
+    'იპოვე ბიტონური მასივის (ჯერ ზრდადი, მერე კლებადი) მწვერვალი — დახრილობაზე binary search-ით.',
+    'გადაწყვიტე, ჩნდება თუ არა x მატრიცაში, რომლის სტრიქონები და სვეტები დახარისხებულია.',
   ],
 
   practice: [
@@ -794,12 +799,12 @@ long long firstTrue(long long lo, long long hi, function<bool(long long)> ok) {
   ],
 
   combineNote:
-    'Binary search is the lookup under `lower_bound` / `upper_bound`, so it pairs ' +
-    'with sorting on nearly every "sort then query" problem. On a prefix-sum ' +
-    'array of non-negative values it finds the shortest prefix reaching a ' +
-    'target. Generalised to the answer itself — binary search on the answer — it ' +
-    'turns an optimisation into a feasibility check. Coordinate compression is ' +
-    'exactly `lower_bound` on the sorted list of distinct values.',
+    'binary search არის ძებნა `lower_bound` / `upper_bound`-ის ქვეშ, ამიტომ თითქმის ' +
+    'ყველა „დაახარისხე, მერე იკითხე" ამოცანაზე დახარისხებას ერწყმის. არაუარყოფითი ' +
+    'მნიშვნელობების prefix-sum მასივზე ის პოულობს უმოკლეს პრეფიქსს, რომელიც სამიზნეს ' +
+    'აღწევს. თავად პასუხზე განზოგადებული — binary search on answer — ოპტიმიზაციას ' +
+    'მიღწევადობის შემოწმებად აქცევს. coordinate compression სწორედ `lower_bound`-ია ' +
+    'განსხვავებული მნიშვნელობების დახარისხებულ სიაზე.',
 
   prerequisites: [],
   related: ['two-pointers', 'sorting-techniques', 'binary-search-on-answer', 'prefix-sums'],
@@ -810,60 +815,60 @@ long long firstTrue(long long lo, long long hi, function<bool(long long)> ok) {
 const bitManipulation: CtTopic = {
   id: 'bit-manipulation',
   title: 'Bit Manipulation',
-  titleKa: 'ბიტ-მანიპულაცია',
+  titleKa: 'ბიტური ოპერაციები',
   category: 'foundation',
   priority: 'important',
   order: 7,
 
   whatIs:
-    'Treat an integer as an array of bits and use AND / OR / XOR / shifts to ' +
-    'test, set, clear, or count them in `O(1)`. A subset of a universe of up to ' +
-    '64 elements fits in one `long long`.',
+    'მთელი რიცხვის მოპყრობა ბიტების მასივად და AND / OR / XOR / წანაცვლების ' +
+    'გამოყენება მათ შესამოწმებლად, დასაყენებლად, გასასუფთავებლად ან დასათვლელად ' +
+    '`O(1)`-ში. მაქსიმუმ 64-ელემენტიანი უნივერსუმის ქვესიმრავლე ერთ `long long`-ში ეტევა.',
 
   intuition:
-    'Bit i answers a yes/no question about element i. One machine word holds 64 ' +
-    'such answers and one instruction updates or combines all of them at once.',
+    'ბიტი i პასუხობს კი/არა კითხვას ელემენტ i-ზე. ერთი მანქანური სიტყვა ინახავს ' +
+    '64 ასეთ პასუხს და ერთი ინსტრუქცია მათ ერთდროულად ანახლებს ან აერთიანებს.',
 
   whyItWorks:
-    'The CPU operates on every bit of a word in parallel. `x & (1LL << i)` ' +
-    'isolates bit i; `x ^ y` flips exactly the bits where x and y differ; ' +
-    '`x & -x` isolates the lowest set bit because two’s-complement negation ' +
-    'is flip-then-add-one; `__builtin_popcountll(x)` counts set bits in one ' +
-    'instruction.',
+    'CPU სიტყვის ყველა ბიტზე პარალელურად მუშაობს. `x & (1LL << i)` გამოყოფს ' +
+    'ბიტ i-ს; `x ^ y` ცვლის ზუსტად იმ ბიტებს, სადაც x და y განსხვავდება; ' +
+    '`x & -x` გამოყოფს უდაბლეს ჩართულ ბიტს, რადგან two’s-complement უარყოფა ' +
+    'არის შებრუნება-პლუს-ერთი; `__builtin_popcountll(x)` ითვლის ჩართულ ბიტებს ერთ ' +
+    'ინსტრუქციაში.',
 
   naive:
-    'Storing a small subset as a `vector<bool>` or `set<int>` costs `O(n)` per ' +
-    'union / intersection / membership plus allocation and cache misses. A ' +
-    'bitmask does each in `O(1)` with no allocation — often the difference ' +
-    'between an `O(2^n · n)` enumeration fitting the time limit and not.',
+    'პატარა ქვესიმრავლის შენახვა `vector<bool>`-ად ან `set<int>`-ად ჯდება `O(n)` ' +
+    'თითო გაერთიანებაზე / თანაკვეთაზე / კუთვნილებაზე, პლუს გამოყოფა და კეშ-გამო­ცდენა. ' +
+    'ბიტმასკი თითოეულს `O(1)`-ში აკეთებს გამოყოფის გარეშე — ხშირად ეს არის სხვაობა ' +
+    'იმას შორის, `O(2^n · n)` ჩამოთვლა ჯდება დროის ლიმიტში თუ არა.',
 
   whenToUse: [
-    'A subset of a small universe — n ≤ ~22 to enumerate, ≤ 64 to store',
-    'Fast set algebra: union `|`, intersection `&`, difference `& ~`, symmetric difference `^`, membership `>> i & 1`',
-    'Parity / XOR tricks: "the one non-repeated value", prefix XOR for range XOR',
-    'Counting set bits, iterating set bits, iterating submasks of a mask',
+    'პატარა უნივერსუმის ქვესიმრავლე — n ≤ ~22 ჩამოსათვლელად, ≤ 64 შესანახად',
+    'სწრაფი სიმრავლური ალგებრა: გაერთიანება `|`, თანაკვეთა `&`, სხვაობა `& ~`, სიმეტრიული სხვაობა `^`, კუთვნილება `>> i & 1`',
+    'ლუწობა / XOR ხრიკები: „ერთადერთი გაუმეორებელი მნიშვნელობა", prefix XOR დიაპაზონურ XOR-ზე',
+    'ჩართული ბიტების დათვლა, ჩართულ ბიტებზე გავლა, ბიტმასკის ქვემასკებზე გავლა',
   ],
 
   signals: [
-    '"n ≤ 20" (often ≤ 22) — a strong hint that subsets are enumerated',
-    '"each element is taken or not", "on/off", "subset", "mask"',
-    '"every value appears twice except one" → XOR everything together',
-    '"toggle", "flip", "XOR of a range"',
+    '„n ≤ 20" (ხშირად ≤ 22) — ძლიერი მინიშნება, რომ ქვესიმრავლეები იჩამოთვლება',
+    '„თითო ელემენტი აღებულია ან არა", „ჩართული/გამორთული", „ქვესიმრავლე", „მასკა"',
+    '„თითო მნიშვნელობა ორჯერ ჩნდება, გარდა ერთისა" → XOR ყველაფერს ერთად',
+    '„გადართე", „შეაბრუნე", „დიაპაზონის XOR"',
   ],
 
   walkthrough: [
-    'mask = 0b1011 — elements 0, 1, 3 present in a universe of 4.',
-    'Has element 2?  `mask >> 2 & 1` = 0 → no.',
-    'Add element 2:  `mask | (1 << 2)` = 0b1111.',
-    'Remove element 0: `mask & ~(1 << 0)` = 0b1110.',
-    'Count: `__builtin_popcount(0b1110)` = 3.',
-    'Lowest set bit of 0b1110: `mask & -mask` = 0b0010 (element 1).',
-    'Iterate all 2^4 subsets: `for (int s = 0; s < (1 << 4); s++)`.',
+    'mask = 0b1011 — ელემენტები 0, 1, 3 არიან 4-ელემენტიან უნივერსუმში.',
+    'აქვს ელემენტი 2?  `mask >> 2 & 1` = 0 → არა.',
+    'დაამატე ელემენტი 2:  `mask | (1 << 2)` = 0b1111.',
+    'მოაშორე ელემენტი 0: `mask & ~(1 << 0)` = 0b1110.',
+    'დათვლა: `__builtin_popcount(0b1110)` = 3.',
+    '0b1110-ის უდაბლესი ჩართული ბიტი: `mask & -mask` = 0b0010 (ელემენტი 1).',
+    'ყველა 2^4 ქვესიმრავლეზე გავლა: `for (int s = 0; s < (1 << 4); s++)`.',
   ],
 
   cpp: [
     {
-      caption: 'The idiom table',
+      caption: 'იდიომების ცხრილი',
       code: `int  test  (int x, int i) { return (x >> i) & 1; }        // bit i set?
 int  setBit(int x, int i) { return x | (1 << i); }
 int  clr   (int x, int i) { return x & ~(1 << i); }
@@ -878,7 +883,7 @@ for (int m = x; m; m &= m - 1) {
 }`,
     },
     {
-      caption: 'XOR to find the unique element; iterate all submasks',
+      caption: 'XOR ერთადერთი ელემენტის საპოვნელად; ყველა ქვემასკაზე გავლა',
       code: `// every value appears twice except one:
 long long only = 0;
 for (long long v : a) only ^= v;          // pairs cancel, the loner remains
@@ -892,30 +897,30 @@ for (int sub = mask; ; sub = (sub - 1) & mask) {
   ],
 
   time:
-    'O(1) per bit operation. Enumerate all subsets of n: O(2^n). Iterate all ' +
-    'submasks of every mask: O(3^n) total. popcount is O(1).',
-  space: 'O(1) per mask (one word). An array indexed by mask is O(2^n).',
+    'O(1) თითო ბიტურ ოპერაციაზე. ყველა ქვესიმრავლის ჩამოთვლა n-ისთვის: O(2^n). ' +
+    'ყველა მასკის ყველა ქვემასკაზე გავლა: სულ O(3^n). popcount არის O(1).',
+  space: 'O(1) თითო მასკაზე (ერთი სიტყვა). მასკით ინდექსირებული მასივი არის O(2^n).',
 
   mistakes: [
-    '`1 << i` is a 32-bit `int`; for i ≥ 31 you need `1LL << i`. The single most common bit bug.',
-    'Precedence: `x & 1 == 0` parses as `x & (1 == 0)`. Write `(x & 1) == 0`.',
-    '`x & -x` on a plain `int` when x can be INT_MIN is undefined behaviour — use `long long` or unsigned.',
-    'Shifting by ≥ the type width (≥ 32 for `int`, ≥ 64 for `long long`) is undefined.',
-    'Signed right shift of a negative number fills with the sign bit — use unsigned for logical shifts.',
+    '`1 << i` არის 32-ბიტიანი `int`; i ≥ 31-ისთვის გჭირდება `1LL << i`. ყველაზე გავრცელებული ბიტ-შეცდომა.',
+    'პრიორიტეტი: `x & 1 == 0` იკითხება როგორც `x & (1 == 0)`. დაწერე `(x & 1) == 0`.',
+    '`x & -x` ჩვეულებრივ `int`-ზე, როცა x შეიძლება იყოს INT_MIN — undefined behaviour. გამოიყენე `long long` ან unsigned.',
+    'წანაცვლება ტიპის სიგანეზე მეტით (≥ 32 `int`-ისთვის, ≥ 64 `long long`-ისთვის) — undefined.',
+    'უარყოფითი რიცხვის ნიშნიანი მარჯვენა წანაცვლება ივსება ნიშნის ბიტით — გამოიყენე unsigned ლოგიკური წანაცვლებისთვის.',
   ],
 
   edgeCases: [
-    'Empty mask (0) — popcount 0, no bits to iterate, `x & -x` = 0.',
-    'Full mask — for n ≥ 31 it must be `(1LL << n) - 1`.',
-    'n = 0 — the only subset is empty; the loop `s < 1` runs once.',
-    'Negative inputs — bit ops see the two’s-complement representation.',
+    'ცარიელი მასკა (0) — popcount 0, ბიტები არ არის გასავლელი, `x & -x` = 0.',
+    'სავსე მასკა — n ≥ 31-ისთვის უნდა იყოს `(1LL << n) - 1`.',
+    'n = 0 — ერთადერთი ქვესიმრავლე ცარიელია; ციკლი `s < 1` ერთხელ ტრიალებს.',
+    'უარყოფითი შესატანი — ბიტ-ოპერაციები two’s-complement წარმოდგენას ხედავენ.',
   ],
 
   exercises: [
-    'Given an array where every number appears twice except one, find it in O(n) time and O(1) space.',
-    'Generate all subsets of {0..n−1}, printing each as a list of elements.',
-    'For a fixed mask, enumerate its submasks in decreasing order.',
-    'Compute the XOR of a[l..r] for many queries using a prefix-XOR array.',
+    'მასივში, სადაც თითო რიცხვი ორჯერ ჩნდება ერთის გარდა, იპოვე ის O(n) დროსა და O(1) მეხსიერებაში.',
+    'დააგენერირე {0..n−1}-ის ყველა ქვესიმრავლე, თითო დაბეჭდე ელემენტების სიად.',
+    'ფიქსირებული მასკისთვის ჩამოთვალე მისი ქვემასკები კლებადი მიმდევრობით.',
+    'გამოთვალე a[l..r]-ის XOR ბევრი მოთხოვნისთვის prefix-XOR მასივით.',
   ],
 
   practice: [
@@ -925,11 +930,11 @@ for (int sub = mask; ; sub = (sub - 1) & mask) {
   ],
 
   combineNote:
-    'Bit manipulation is the substrate for bitmask enumeration (loop s over ' +
-    '0..2^n) and bitmask DP (state = the subset already handled). Prefix XOR ' +
-    'gives range XOR the way prefix sum gives range sum. `x & -x` is the index ' +
-    'step of a Fenwick tree. Meet in the middle splits the mask into two halves ' +
-    'and recombines them.',
+    'ბიტური ოპერაციები არის საფუძველი bitmask enumeration-ისთვის (ციკლი s-ზე ' +
+    '0..2^n) და bitmask DP-სთვის (მდგომარეობა = უკვე დამუშავებული ქვესიმრავლე). ' +
+    'prefix XOR იძლევა დიაპაზონურ XOR-ს ისე, როგორც prefix sum იძლევა დიაპაზონურ ' +
+    'ჯამს. `x & -x` არის Fenwick-ის ხის ინდექსის ნაბიჯი. meet in the middle მასკას ' +
+    'ორ ნახევრად ყოფს და ისევ აერთიანებს.',
 
   prerequisites: [],
   related: ['bitmask-enumeration', 'bitmask-dp', 'frequency-arrays'],
@@ -946,54 +951,54 @@ const recursion: CtTopic = {
   order: 8,
 
   whatIs:
-    'A function that solves a problem by calling itself on smaller instances and ' +
-    'combining the results. "Multi-branch" means each call spawns several ' +
-    'recursive calls — exploring a tree of choices rather than a single chain.',
+    'ფუნქცია, რომელიც ამოცანას თავის თავზე უფრო პატარა შემთხვევებზე გამოძახებით ' +
+    'და შედეგების გაერთიანებით ხსნის. „მრავალტოტიანი" ნიშნავს, რომ თითო გამოძახება ' +
+    'რამდენიმე რეკურსიულ გამოძახებას წარმოშობს — არჩევანთა ხეს იკვლევს, არა ერთ ჯაჭვს.',
 
   intuition:
-    'Express the answer for size n in terms of answers for smaller sizes, plus a ' +
-    'base case that needs no recursion. The call stack remembers "where was I".',
+    'ზომა-n-ის პასუხი გამოსახე პატარა ზომების პასუხებით, პლუს საბაზისო შემთხვევა, ' +
+    'რომელსაც რეკურსია არ სჭირდება. გამოძახებების სტეკი ინახავს „სად ვიყავი".',
 
   whyItWorks:
-    'If every call is on a strictly smaller instance and the base case is ' +
-    'reachable, the recursion terminates; correctness follows by induction — ' +
-    'assume the recursive calls are right, show the combine step is right. The ' +
-    'call stack holds one frame per active call, so depth, not the total number ' +
-    'of calls, is the memory cost.',
+    'თუ თითო გამოძახება მკაცრად პატარა შემთხვევაზეა და საბაზისო შემთხვევა ' +
+    'მიღწევადია, რეკურსია მთავრდება; სისწორე გამომდინარეობს ინდუქციით — ჩათვალე, ' +
+    'რომ რეკურსიული გამოძახებები სწორია, აჩვენე, რომ გაერთიანების ნაბიჯი სწორია. ' +
+    'გამოძახებების სტეკი ინახავს თითო აქტიურ გამოძახებაზე ერთ ჩარჩოს, ამიტომ ' +
+    'სიღრმე, არა გამოძახებათა ჯამური რაოდენობა, არის მეხსიერების ფასი.',
 
   naive:
-    'The real "naive vs optimised" here is recomputation. A multi-branch ' +
-    'recursion that revisits the same subproblem is exponential — naive ' +
-    'Fibonacci is O(phi^n) because fib(n−2) is recomputed all the way down. ' +
-    'Caching each distinct subproblem (memoisation) makes it O(number of ' +
-    'states). That single step is the doorway to dynamic programming.',
+    'ნამდვილი „მარტივი vs ოპტიმიზებული" აქ არის ხელახალი გამოთვლა. მრავალტოტიანი ' +
+    'რეკურსია, რომელიც ერთსა და იმავე ქვეამოცანას თავიდან ხსნის, ექსპონენციალურია — ' +
+    'მარტივი Fibonacci არის O(phi^n), რადგან fib(n−2) ბოლომდე თავიდან იანგარიშება. ' +
+    'თითო განსხვავებული ქვეამოცანის დამახსოვრება (მემოიზაცია) მას O(მდგომარეობათა ' +
+    'რაოდენობა)-ს ხდის. ეს ერთი ნაბიჯი არის კარი დინამიური დაპროგრამებისკენ (DP).',
 
   whenToUse: [
-    '"Try every choice at each step" with small n — permutations, subsets, board placements',
-    'A tree or nested structure — recurse into the children',
-    'Divide and conquer — split, solve both halves, merge (merge sort, quickselect)',
-    'The definition is itself recursive: "an expression is a number, or (expr op expr)"',
+    '„სცადე თითო არჩევანი თითო ნაბიჯზე" პატარა n-ით — გადანაცვლებები, ქვესიმრავლეები, დაფაზე განლაგება',
+    'ხე ან ჩალაგებული სტრუქტურა — რეკურსია შვილებში',
+    'გაყავი და იბატონე — გაყავი, ორივე ნახევარი ამოხსენი, შეარწყი (merge sort, quickselect)',
+    'განსაზღვრება თავად რეკურსიულია: „გამოსახულება არის რიცხვი, ან (გამოსახ. ოპ გამოსახ.)"',
   ],
 
   signals: [
-    '"generate all", "count the number of ways", "every possible" with small n',
-    '"the input is a tree", nested brackets, nested folders',
-    '"at each step you choose one of k options"',
-    'A definition that refers to itself',
+    '„დააგენერირე ყველა", „დაითვალე ხერხების რაოდენობა", „ყველა შესაძლო" პატარა n-ით',
+    '„შესატანი არის ხე", ჩალაგებული ფრჩხილები, ჩალაგებული საქაღალდეები',
+    '„თითო ნაბიჯზე ირჩევ k ვარიანტიდან ერთს"',
+    'განსაზღვრება, რომელიც საკუთარ თავზე მიუთითებს',
   ],
 
   walkthrough: [
-    'Count monotone paths (right/down only) across a 2×2 grid of cells.',
-    'solve(r, c): at the goal → 1; out of bounds → 0; else solve(r+1, c) + solve(r, c+1).',
-    'solve(0,0) = solve(1,0) + solve(0,1)   — two branches.',
+    'დაითვალე მონოტონური გზები (მხოლოდ მარჯვნივ/ქვევით) 2×2 უჯრედიან ბადეზე.',
+    'solve(r, c): მიზანზე → 1; საზღვრებს გარეთ → 0; სხვა შემთხვევაში solve(r+1, c) + solve(r, c+1).',
+    'solve(0,0) = solve(1,0) + solve(0,1)   — ორი ტოტი.',
     'solve(1,0) = solve(1,1) + solve(2,0) = 1 + 0 = 1.',
     'solve(0,1) = solve(1,1) + solve(0,2) = 1 + 0 = 1.',
-    'solve(0,0) = 2. Note solve(1,1) was evaluated twice — on a large grid that overlap is why memoisation matters.',
+    'solve(0,0) = 2. solve(1,1) ორჯერ დაითვალა — დიდ ბადეზე ეს გადაფარვაა მიზეზი, რატომ არის მემოიზაცია მნიშვნელოვანი.',
   ],
 
   cpp: [
     {
-      caption: 'Multi-branch recursion: include / exclude to list all subsets',
+      caption: 'მრავალტოტიანი რეკურსია: ჩართე/გამორიცხე ყველა ქვესიმრავლის ჩამოსათვლელად',
       code: `#include <bits/stdc++.h>
 using namespace std;
 
@@ -1001,7 +1006,7 @@ vector<int> cur;
 void gen(const vector<int>& a, int i) {
     if (i == (int)a.size()) {                 // base case: a full decision made
         for (int x : cur) cout << x << ' ';
-        cout << "\n";
+        cout << "\\n";
         return;
     }
     gen(a, i + 1);                            // branch 1: skip a[i]
@@ -1011,7 +1016,7 @@ void gen(const vector<int>& a, int i) {
 }`,
     },
     {
-      caption: 'The recomputation trap and its fix',
+      caption: 'ხელახალი გამოთვლის ხაფანგი და მისი გამოსწორება',
       code: `long long fibSlow(int n) {                    // O(phi^n): fib(n-2) recomputed everywhere
     if (n < 2) return n;
     return fibSlow(n - 1) + fibSlow(n - 2);
@@ -1028,35 +1033,35 @@ long long fibFast(int n) {                    // O(n): each state solved once
   ],
 
   time:
-    'With b branches and depth d the call count is O(b^d). Merge sort is ' +
-    'O(n log n). A multi-branch recursion with overlapping subproblems is ' +
-    'exponential until memoised, then O(states · work per state).',
+    'b ტოტითა და d სიღრმით გამოძახებათა რაოდენობა O(b^d)-ია. merge sort არის ' +
+    'O(n log n). გადამფარავი ქვეამოცანების მქონე მრავალტოტიანი რეკურსია ' +
+    'ექსპონენციალურია მემოიზაციამდე, მერე O(მდგომარეობები · სამუშაო თითო მდგომარეობაზე).',
   space:
-    'O(depth) for the call stack — this is the number that overflows, not the ' +
-    'call count. Depth around 10^5 can exceed the ~1 MB default stack; iterate ' +
-    'or raise the limit.',
+    'O(სიღრმე) გამოძახებების სტეკისთვის — ეს არის რიცხვი, რომელიც გადაივსება, არა ' +
+    'გამოძახებათა რაოდენობა. ~10^5-იანი სიღრმე შეიძლება ~1 MB ნაგულისხმევ სტეკს ' +
+    'გასცდეს; გადადი იტერაციაზე ან გაზარდე ლიმიტი.',
 
   mistakes: [
-    'No base case, or one the recursion never reaches → infinite recursion → stack overflow.',
-    'Recursing on the same size — the instance never shrinks.',
-    'Exponential recomputation — the same subproblem solved thousands of times. Memoise.',
-    'Deep recursion overflowing the stack; convert to an explicit stack or increase it.',
-    'Passing large containers by value on every call — take `const&`.',
-    'Backtracking: forgetting to undo the choice after the recursive call returns.',
+    'საბაზისო შემთხვევის არარსებობა, ან ისეთი, რომელსაც რეკურსია ვერ აღწევს → უსასრულო რეკურსია → სტეკის გადავსება.',
+    'რეკურსია იმავე ზომაზე — შემთხვევა არასდროს მცირდება.',
+    'ექსპონენციალური ხელახალი გამოთვლა — ერთი ქვეამოცანა ათასჯერ იხსნება. მოახდინე მემოიზაცია.',
+    'ღრმა რეკურსია სტეკს გადაავსებს; გადაიყვანე ცხად სტეკზე ან გაზარდე იგი.',
+    'დიდი კონტეინერების მნიშვნელობით გადაცემა თითო გამოძახებაზე — მიიღე `const&`.',
+    'backtracking: არჩევანის დაბრუნების დავიწყება რეკურსიული გამოძახების დასრულების შემდეგ.',
   ],
 
   edgeCases: [
-    'n = 0 / empty input — the base case must return directly, not recurse.',
-    'Single element.',
-    'A branch over an empty range — return the identity (0 for a sum, empty for a list).',
-    'Recursion depth exactly at the stack limit.',
+    'n = 0 / ცარიელი შესატანი — საბაზისო შემთხვევამ პირდაპირ უნდა დააბრუნოს, არ დაარეკურსიოს.',
+    'ერთი ელემენტი.',
+    'ტოტი ცარიელ დიაპაზონზე — დააბრუნე ერთეული (0 ჯამისთვის, ცარიელი სიისთვის).',
+    'რეკურსიის სიღრმე ზუსტად სტეკის ლიმიტზე.',
   ],
 
   exercises: [
-    'Print all subsets of {1..n} with include/exclude recursion.',
-    'Count the ordered ways to write n as a sum of 1s and 2s — naive, then memoise (it is Fibonacci).',
-    'Sum every integer in an arbitrarily nested list.',
-    'Implement merge sort.',
+    'დაბეჭდე {1..n}-ის ყველა ქვესიმრავლე ჩართვა/გამორიცხვის რეკურსიით.',
+    'დაითვალე n-ის 1-ებისა და 2-ების მოწესრიგებული ჯამებით ჩაწერის ხერხები — მარტივად, მერე მემოიზაციით (ეს Fibonacci-ია).',
+    'შეაჯამე ყველა მთელი თვითნებურად ჩალაგებულ სიაში.',
+    'დაწერე merge sort.',
   ],
 
   practice: [
@@ -1066,12 +1071,11 @@ long long fibFast(int n) {                    // O(n): each state solved once
   ],
 
   combineNote:
-    'Multi-branch recursion plus "undo after the call" is backtracking. Plus ' +
-    'memoisation it is top-down DP — the same recursion, each distinct ' +
-    'subproblem solved once. Recursion over a graph’s adjacency is DFS; over ' +
-    'a tree it is tree traversal, and combining the children’s answers on the ' +
-    'way back up is tree DP. Divide and conquer is recursion whose branches ' +
-    'partition the input.',
+    'მრავალტოტიანი რეკურსია პლუს „გამოძახების შემდეგ დაბრუნება" არის backtracking. ' +
+    'პლუს მემოიზაცია — ეს top-down DP-ია, იგივე რეკურსია, თითო განსხვავებული ' +
+    'ქვეამოცანა ერთხელ იხსნება. რეკურსია გრაფის სიაზე არის DFS; ხეზე — ხეზე გავლა, ' +
+    'და შვილების პასუხების გაერთიანება უკან დაბრუნებისას არის tree DP. გაყავი და ' +
+    'იბატონე არის რეკურსია, რომლის ტოტები შესატანს ყოფენ.',
 
   prerequisites: [],
   related: ['backtracking', 'dfs', 'trees', 'dp-fundamentals', 'memoization-vs-iterative'],

@@ -36,59 +36,60 @@ function slot(
 const sortingTechniques: CtTopic = {
   id: 'sorting-techniques',
   title: 'Sorting-based Techniques',
-  titleKa: 'დახარისხების ხრიკები',
+  titleKa: 'დალაგებაზე დაფუძნებული მეთოდები',
   category: 'core',
   priority: 'essential',
   order: 1,
 
   whatIs:
-    'Not "how to sort" — `sort()` does that — but the meta-move: order the data ' +
-    '(or a copy, or an index list) by a chosen key so that an ordering property ' +
-    'makes the rest of the problem linear or easy.',
+    'არა „როგორ დავახარისხოთ" — ამას `sort()` აკეთებს — არამედ მეტა-ნაბიჯი: ' +
+    'დაალაგე მონაცემი (ან ასლი, ან ინდექსების სია) არჩეული გასაღებით ისე, რომ ' +
+    'დალაგების თვისებამ ამოცანის დანარჩენი ნაწილი წრფივი ან მარტივი გახადოს.',
 
   intuition:
-    'Many problems are hard only because the input is in arbitrary order. Impose ' +
-    'an order that puts the elements you need to compare next to each other, and ' +
-    'a nested loop becomes a single sweep.',
+    'ბევრი ამოცანა რთულია მხოლოდ იმიტომ, რომ შესატანი თვითნებურ რიგშია. დააწესე ' +
+    'რიგი, რომელიც შესადარებელ ელემენტებს გვერდიგვერდ აყენებს, და ჩადგმული ' +
+    'ციკლი ერთ გავლად იქცევა.',
 
   whyItWorks:
-    'After sorting, "the next relevant element" is always adjacent or reachable ' +
-    'by a monotone pointer. The sort costs `O(n log n)` once and buys `O(n)` or ' +
-    '`O(n log n)` for the main logic instead of `O(n^2)`. The skill is choosing ' +
-    'the key — by value, by a pair, by start time, by a custom comparator.',
+    'დახარისხების შემდეგ „მომდევნო რელევანტური ელემენტი" ყოველთვის მეზობელია ან ' +
+    'მონოტონური მაჩვენებლით მიღწევადი. დახარისხება ჯდება `O(n log n)` ერთხელ და ' +
+    'ყიდულობს `O(n)` ან `O(n log n)`-ს მთავარი ლოგიკისთვის `O(n^2)`-ის ნაცვლად. ' +
+    'ოსტატობა გასაღების არჩევაშია — მნიშვნელობით, წყვილით, დაწყების დროით, ' +
+    'ხელით დაწერილი კომპარატორით.',
 
   naive:
-    'Comparing every pair to find the two closest numbers, or checking every ' +
-    'interval against every other for overlap, is `O(n^2)`. Sort by the right ' +
-    'key and the answer is between adjacent elements, or falls out of one ' +
-    'left-to-right pass with a running state: `O(n log n)`, dominated by the sort.',
+    'ყველა წყვილის შედარება ორი უახლოესი რიცხვის საპოვნელად, ან თითო ინტერვალის ' +
+    'შემოწმება ყველა სხვასთან გადაფარვაზე, `O(n^2)`-ია. დაახარისხე სწორი გასაღებით ' +
+    'და პასუხი მეზობელ ელემენტებს შორისაა, ან ერთი მარცხნიდან-მარჯვნივ გავლიდან ' +
+    'გამოდის მიმდინარე მდგომარეობით: `O(n log n)`, სადაც დახარისხება დომინირებს.',
 
   whenToUse: [
-    '"Closest pair", "minimum difference", "k-th smallest" — sort, then adjacent or indexed',
-    'Intervals — sort by start, or by end for a greedy',
-    '"Match / assign greedily" — sort both sides and walk them together',
-    'Offline queries — sort the queries into a favourable processing order',
-    'Sorting by a custom key: (deadline, then penalty), (ratio), (end time)',
+    '„უახლოესი წყვილი", „მინიმალური სხვაობა", „k-ური უმცირესი" — დაახარისხე, მერე მეზობელი ან ინდექსირებული',
+    'ინტერვალები — დაახარისხე დაწყებით, ან დასრულებით ხარბი ალგორითმისთვის',
+    '„დააწყვილე / განაწილე ხარბად" — დაახარისხე ორივე მხარე და ერთად გაატარე',
+    'Offline მოთხოვნები — დაახარისხე მოთხოვნები ხელსაყრელ დამუშავების რიგში',
+    'დახარისხება ხელით გასაღებით: (ვადა, მერე ჯარიმა), (ფარდობა), (დასრულების დრო)',
   ],
 
   signals: [
-    '"minimum / maximum difference between any two", "closest"',
-    '"intervals", "segments", "meetings", "ranges" needing pairing or overlap counts',
-    '"you may answer the queries in any order" (offline)',
-    'An O(n^2) pair comparison that a 1-D order would make adjacent',
-    '"sort the ... by ..." is often literally the first line of the editorial',
+    '„მინიმალური / მაქსიმალური სხვაობა ნებისმიერ ორს შორის", „უახლოესი"',
+    '„ინტერვალები", „სეგმენტები", „შეხვედრები", „დიაპაზონები", რომლებსაც დაწყვილება ან გადაფარვის დათვლა სჭირდება',
+    '„მოთხოვნებზე ნებისმიერი რიგით შეიძლება პასუხი" (offline)',
+    'O(n^2) წყვილთა შედარება, რომელსაც ერთგანზომილებიანი რიგი მეზობლად აქცევდა',
+    '„დაახარისხე ... -ის მიხედვით" ხშირად სიტყვასიტყვით editorial-ის პირველი ხაზია',
   ],
 
   walkthrough: [
-    'Minimum absolute difference between any two of a = [8, 1, 5, 12, 3].',
-    'Naive: check all 10 pairs.',
-    'Sort → [1, 3, 5, 8, 12]. If x < y < z then y is closer to both than x is to z, so the closest pair must be adjacent.',
-    'Adjacent diffs: 2, 2, 3, 4 → minimum 2. One pass over n−1 pairs.',
+    'მინიმალური აბსოლუტური სხვაობა ნებისმიერ ორს შორის a = [8, 1, 5, 12, 3]-ში.',
+    'მარტივი: შეამოწმე ყველა 10 წყვილი.',
+    'დაახარისხე → [1, 3, 5, 8, 12]. თუ x < y < z, მაშინ y უფრო ახლოსაა ორივესთან, ვიდრე x არის z-თან, ამიტომ უახლოესი წყვილი მეზობელი უნდა იყოს.',
+    'მეზობელი სხვაობები: 2, 2, 3, 4 → მინიმუმი 2. ერთი გავლა n−1 წყვილზე.',
   ],
 
   cpp: [
     {
-      caption: 'Sort then sweep: merge overlapping intervals',
+      caption: 'დაახარისხე, მერე გაასრიალე: გადამფარავი ინტერვალების შერწყმა',
       code: `#include <bits/stdc++.h>
 using namespace std;
 
@@ -105,11 +106,11 @@ int main() {
         else
             merged.push_back({l, r});                              // new block
     }
-    for (auto& [l, r] : merged) cout << l << " " << r << "\n";
+    for (auto& [l, r] : merged) cout << l << " " << r << "\\n";
 }`,
     },
     {
-      caption: 'Sort an index array — keep the original data in place',
+      caption: 'დაახარისხე ინდექსების მასივი — საწყისი მონაცემი ადგილზე დატოვე',
       code: `vector<int> idx(n);
 iota(idx.begin(), idx.end(), 0);              // 0, 1, 2, ...
 sort(idx.begin(), idx.end(),
@@ -118,31 +119,31 @@ sort(idx.begin(), idx.end(),
     },
   ],
 
-  time: 'O(n log n) for the sort; the technique on top is usually O(n) or O(n log n). Dominated by the sort.',
+  time: 'O(n log n) დახარისხებაზე; ზემოთ მდგომი ტექნიკა ჩვეულებრივ O(n) ან O(n log n)-ია. დახარისხება დომინირებს.',
   space:
-    'O(n) if you sort a copy or an index array; O(log n) stack for the sort; ' +
-    'O(1) extra if you sort in place and only sweep.',
+    'O(n), თუ ასლს ან ინდექსების მასივს ახარისხებ; O(log n) სტეკი დახარისხებისთვის; ' +
+    'O(1) დამატებით, თუ ადგილზე ახარისხებ და მხოლოდ ასრიალებ.',
 
   mistakes: [
-    'Sorting the values but needing the original indices — sort an index array, or sort `(value, index)` pairs.',
-    'A comparator that is not a strict weak ordering — `return a <= b;` can crash `std::sort`. Use strict `<`.',
-    'Sorting by the wrong key — by start when the greedy needs end, or the reverse.',
-    'Overflow in a ratio comparator (`a.x * b.y`) — cross-multiply in `long long`.',
-    'Forgetting that sorting destroys an input order a later part of the problem still needs.',
+    'მნიშვნელობების დახარისხება, როცა საწყისი ინდექსები გჭირდება — დაახარისხე ინდექსების მასივი, ან `(მნიშვნელობა, ინდექსი)` წყვილები.',
+    'კომპარატორი, რომელიც არ არის მკაცრი სუსტი დალაგება — `return a <= b;` აფუჭებს `std::sort`-ს. გამოიყენე მკაცრი `<`.',
+    'დახარისხება არასწორი გასაღებით — დაწყებით, როცა ხარბ ალგორითმს დასრულება სჭირდება, ან პირიქით.',
+    'Overflow ფარდობის კომპარატორში (`a.x * b.y`) — გადაამრავლე ჯვარედინად `long long`-ში.',
+    'იმის დავიწყება, რომ დახარისხება შლის შესატანის რიგს, რომელიც ამოცანის შემდგომ ნაწილს ისევ სჭირდება.',
   ],
 
   edgeCases: [
-    'n ≤ 1 — nothing to compare; handle before the sorting logic.',
-    'All elements equal — adjacent differences are 0; the comparator must stay strict.',
-    'Already sorted or reverse sorted — still O(n log n), no special case.',
-    'Duplicate keys under a custom comparator — decide whether ties need a secondary key or `stable_sort`.',
+    'n ≤ 1 — შესადარებელი არაფერია; დაამუშავე დახარისხების ლოგიკამდე.',
+    'ყველა ელემენტი ტოლი — მეზობელი სხვაობები 0-ია; კომპარატორი მკაცრი უნდა დარჩეს.',
+    'უკვე დახარისხებული ან შებრუნებულად დახარისხებული — მაინც O(n log n), განსაკუთრებული შემთხვევის გარეშე.',
+    'გამეორებული გასაღებები ხელით კომპარატორთან — გადაწყვიტე, ტოლობებს მეორეული გასაღები სჭირდება თუ `stable_sort`.',
   ],
 
   exercises: [
-    'Given points on a line, find the two closest.',
-    'Merge a list of intervals.',
-    'Sort n items by value/weight ratio (the fractional-knapsack setup).',
-    'Sort strings by length, breaking ties lexicographically.',
+    'მოცემულ წრფეზე წერტილებზე იპოვე ორი უახლოესი.',
+    'შერწყი ინტერვალების სია.',
+    'დაახარისხე n ელემენტი მნიშვნელობა/წონა ფარდობით (ფრაქციული knapsack-ის მოსამზადებელი).',
+    'დაახარისხე სტრიქონები სიგრძით, ტოლობებზე ლექსიკოგრაფიულად.',
   ],
 
   practice: [
@@ -152,11 +153,12 @@ sort(idx.begin(), idx.end(),
   ],
 
   combineNote:
-    'Sorting is the setup for two pointers (both pointers assume order), for ' +
-    'binary search and `lower_bound` (need a sorted array), and for greedy (sort ' +
-    'by the exchange-argument key, then take in order). Coordinate compression is ' +
-    'sorting the distinct values and replacing each by its rank. Sweep-line sorts ' +
-    'the events by coordinate and processes them in order.',
+    'დახარისხება არის ორი მაჩვენებლის მოსამზადებელი (ორივე მაჩვენებელი რიგს ' +
+    'ვარაუდობს), binary search-ისა და `lower_bound`-ის (დახარისხებული მასივი ' +
+    'სჭირდებათ), და ხარბი ალგორითმის (დაახარისხე გაცვლის არგუმენტის გასაღებით, ' +
+    'მერე რიგზე აიღე). coordinate compression არის განსხვავებული მნიშვნელობების ' +
+    'დახარისხება და თითოს რანგით ჩანაცვლება. sweep-line ახარისხებს მოვლენებს ' +
+    'კოორდინატით და რიგზე ამუშავებს.',
 
   prerequisites: ['two-pointers'],
   related: ['two-pointers', 'binary-search', 'greedy', 'coordinate-compression'],
@@ -173,53 +175,54 @@ const coordinateCompression: CtTopic = {
   order: 2,
 
   whatIs:
-    'Replace a set of values that spans a huge range (up to 10^9 or 10^18) but ' +
-    'has only n distinct entries with their ranks 0..k−1. Order is preserved, so ' +
-    'any order-based structure now fits in an array of size k.',
+    'შეცვალე მნიშვნელობათა სიმრავლე, რომელიც უზარმაზარ დიაპაზონს (10^9 ან 10^18-მდე) ' +
+    'ფარავს, მაგრამ მხოლოდ n განსხვავებული ჩანაწერი აქვს, მათი რანგებით 0..k−1. ' +
+    'რიგი შენარჩუნებულია, ამიტომ ნებისმიერი რიგზე დაფუძნებული სტრუქტურა ახლა ' +
+    'k ზომის მასივში ეტევა.',
 
   intuition:
-    'The actual magnitudes rarely matter — only the relative order does. So ' +
-    'relabel the values 0, 1, 2, ... by their position in sorted order.',
+    'ფაქტობრივი სიდიდეები იშვიათად აქვს მნიშვნელობა — მხოლოდ შეფარდებით რიგს. ' +
+    'ამიტომ მნიშვნელობებს ხელახლა დაარქვი 0, 1, 2, ... დახარისხებული პოზიციით.',
 
   whyItWorks:
-    'Sort the distinct values; the rank of a value is its index in that list, ' +
-    'found by `lower_bound` in `O(log k)`. Ranks are a bijection that preserves ' +
-    '`<`, so every comparison, every "count values in [l, r]", every prefix ' +
-    'structure gives the same answer on ranks as on the originals — but now the ' +
-    'index space is `k`, not 10^9.',
+    'დაახარისხე განსხვავებული მნიშვნელობები; მნიშვნელობის რანგი მისი ინდექსია იმ ' +
+    'სიაში, ნაპოვნი `lower_bound`-ით `O(log k)`-ში. რანგები ბიექციაა, რომელიც `<`-ს ' +
+    'ინახავს, ამიტომ თითო შედარება, თითო „დაითვალე მნიშვნელობები [l, r]-ში", თითო ' +
+    'პრეფიქსული სტრუქტურა იძლევა იმავე პასუხს რანგებზე, რასაც საწყისებზე — მაგრამ ' +
+    'ახლა ინდექსების სივრცე `k`-ია, არა 10^9.',
 
   naive:
-    'You want a Fenwick tree or a frequency array indexed by value, but the ' +
-    'values reach 10^9 and the array will not allocate. A `map` works but adds a ' +
-    'log factor and a heavy constant and cannot do the O(1) prefix tricks. ' +
-    'Compression shrinks the index space to n so the fast array-based structure ' +
-    'applies unchanged.',
+    'გინდა Fenwick-ის ხე ან სიხშირეთა მასივი, ინდექსირებული მნიშვნელობით, მაგრამ ' +
+    'მნიშვნელობები 10^9-ს აღწევს და მასივი ვერ გამოიყოფა. `map` მუშაობს, მაგრამ ' +
+    'log ფაქტორსა და მძიმე მუდმივას ამატებს და O(1) პრეფიქსულ ხრიკებს ვერ აკეთებს. ' +
+    'შეკუმშვა ინდექსების სივრცეს n-მდე ამცირებს, ამიტომ სწრაფი მასივზე დაფუძნებული ' +
+    'სტრუქტურა უცვლელად გამოდგება.',
 
   whenToUse: [
-    'You need an array / Fenwick / segment tree indexed by value, but values are huge',
-    '"Count inversions", "for each element count smaller elements to its right"',
-    'Values are huge but only their order matters — ranks, medians, "k-th distinct"',
-    '2D problems — compress each axis independently',
+    'გჭირდება მასივი / Fenwick / segment tree, ინდექსირებული მნიშვნელობით, მაგრამ მნიშვნელობები უზარმაზარია',
+    '„დაითვალე ინვერსიები", „თითო ელემენტისთვის დაითვალე მისგან მარჯვნივ პატარა ელემენტები"',
+    'მნიშვნელობები უზარმაზარია, მაგრამ მხოლოდ რიგს აქვს მნიშვნელობა — რანგები, მედიანები, „k-ური განსხვავებული"',
+    '2D ამოცანები — შეკუმშე თითო ღერძი დამოუკიდებლად',
   ],
 
   signals: [
-    '"values up to 10^9" (or 10^18, or "coordinates") together with a need to index by them',
-    '"count inversions", "count pairs (i, j) with i < j and a[i] > a[j]"',
-    '"how many values are less than x" over many queries, x from a huge range',
-    'A Fenwick / segment-tree idea that only fails because the value range is too big',
+    '„მნიშვნელობები 10^9-მდე" (ან 10^18, ან „კოორდინატები") + საჭიროება მათით ინდექსირებისა',
+    '„დაითვალე ინვერსიები", „დაითვალე წყვილები (i, j) i < j და a[i] > a[j]"',
+    '„რამდენი მნიშვნელობაა x-ზე ნაკლები" ბევრ მოთხოვნაზე, x უზარმაზარი დიაპაზონიდან',
+    'Fenwick / segment-tree იდეა, რომელიც ვერ მუშაობს მხოლოდ იმიტომ, რომ მნიშვნელობათა დიაპაზონი ძალიან დიდია',
   ],
 
   walkthrough: [
     'a = [100, 5, 100, 999999, 5].',
-    'Distinct, sorted: [5, 100, 999999].',
-    'rank(5) = 0, rank(100) = 1, rank(999999) = 2, each via lower_bound.',
-    'Compressed array: [1, 0, 1, 2, 0].',
-    'A Fenwick tree of size 3 can now count "values ≤ x seen so far" during a sweep — impossible on the raw values.',
+    'განსხვავებული, დახარისხებული: [5, 100, 999999].',
+    'rank(5) = 0, rank(100) = 1, rank(999999) = 2, თითო lower_bound-ით.',
+    'შეკუმშული მასივი: [1, 0, 1, 2, 0].',
+    '3 ზომის Fenwick-ის ხე ახლა თვლის „აქამდე ნანახ მნიშვნელობებს ≤ x" გავლისას — შეუძლებელი ნედლ მნიშვნელობებზე.',
   ],
 
   cpp: [
     {
-      caption: 'The compression itself — a reusable helper',
+      caption: 'თავად შეკუმშვა — გამოსაყენებელი დამხმარე',
       code: `#include <bits/stdc++.h>
 using namespace std;
 
@@ -235,7 +238,7 @@ vector<int> compress(const vector<long long>& a, vector<long long>& sorted) {
 }`,
     },
     {
-      caption: 'Its canonical use: count inversions (Fenwick tree covered in its own topic)',
+      caption: 'კანონიკური გამოყენება: ინვერსიების დათვლა (Fenwick-ის ხე ცალკე თემაშია)',
       code: `// bit[] is a Fenwick tree of size k; add(i) and query(i) are its O(log k) ops
 long long inversions = 0;
 vector<int> r = compress(a, sorted);
@@ -246,30 +249,30 @@ for (int i = (int)r.size() - 1; i >= 0; i--) {
     },
   ],
 
-  time: 'O(n log n) to sort and dedupe; O(log k) per rank lookup. Dominated by the sort.',
-  space: 'O(n) for the sorted distinct list and the rank array.',
+  time: 'O(n log n) დახარისხებასა და დედუპლიკაციაზე; O(log k) თითო რანგის ძებნაზე. დახარისხება დომინირებს.',
+  space: 'O(n) დახარისხებული განსხვავებული სიისა და რანგების მასივისთვის.',
 
   mistakes: [
-    'Using `sort` without `unique` — ranks then skip numbers and the compressed range has gaps.',
-    'Off-by-one: `lower_bound(...) - begin()` is the rank; `upper_bound` shifts everything by one.',
-    'Needing to map a rank back to a value and not keeping the sorted distinct list.',
-    'Comparing against a query value that was not in the original set — insert query values into the compression too, or reason carefully about "between two ranks".',
-    'Assuming compression preserves gaps — "is a[i] + 1 present" is not "rank + 1".',
+    '`sort` `unique`-ის გარეშე — რანგები მაშინ ტოვებს რიცხვებს და შეკუმშულ დიაპაზონს ხვრელები აქვს.',
+    'ერთით ცდომა: `lower_bound(...) - begin()` არის რანგი; `upper_bound` ყველაფერს ერთით წეწავს.',
+    'რანგის უკან მნიშვნელობაზე დაბრუნება საჭიროა, ხოლო დახარისხებული განსხვავებული სია არ ინახება.',
+    'შედარება მოთხოვნის მნიშვნელობასთან, რომელიც საწყის სიმრავლეში არ იყო — ჩასვი მოთხოვნის მნიშვნელობებიც შეკუმშვაში, ან ფრთხილად იმსჯელე „ორ რანგს შორის".',
+    'ვარაუდი, რომ შეკუმშვა ხვრელებს ინახავს — „ა[i] + 1 ჩნდება" არ არის „რანგი + 1".',
   ],
 
   edgeCases: [
-    'All values equal — one distinct value, every rank 0, compressed size 1.',
-    'Values already 0..n−1 — compression is the identity, harmless.',
-    'Negative values — sorting handles them; ranks stay 0-based.',
-    'Query values outside the set — decide up front whether to add them.',
-    'n = 0 — empty distinct list, nothing to rank.',
+    'ყველა მნიშვნელობა ტოლი — ერთი განსხვავებული მნიშვნელობა, თითო რანგი 0, შეკუმშული ზომა 1.',
+    'მნიშვნელობები უკვე 0..n−1 — შეკუმშვა იგივეობაა, უვნებელი.',
+    'უარყოფითი მნიშვნელობები — დახარისხება უმკლავდება; რანგები 0-იდან რჩება.',
+    'მოთხოვნის მნიშვნელობები სიმრავლის გარეთ — წინასწარ გადაწყვიტე, დაამატებ თუ არა მათ.',
+    'n = 0 — ცარიელი განსხვავებული სია, სარანგებელი არაფერია.',
   ],
 
   exercises: [
-    'Compress an array and verify the relative order is unchanged.',
-    'Count inversions in an array with values up to 10^9.',
-    'Given segments with huge endpoints, compress them and mark covered cells in a difference array.',
-    'For each element, how many distinct smaller values appear before it.',
+    'შეკუმშე მასივი და გადაამოწმე, რომ შეფარდებითი რიგი უცვლელია.',
+    'დაითვალე ინვერსიები მასივში მნიშვნელობებით 10^9-მდე.',
+    'მოცემულ სეგმენტებზე უზარმაზარი ბოლოებით, შეკუმშე ისინი და მონიშნე დაფარული უჯრედები difference array-ში.',
+    'თითო ელემენტისთვის, რამდენი განსხვავებული პატარა მნიშვნელობა ჩნდება მამდე.',
   ],
 
   practice: [
@@ -279,11 +282,12 @@ for (int i = (int)r.size() - 1; i >= 0; i--) {
   ],
 
   combineNote:
-    'Coordinate compression is sorting plus `lower_bound` — the adapter that lets ' +
-    'a Fenwick tree or segment tree work when the value range is too large to ' +
-    'index. It is the standard first step for offline range-count problems, ' +
-    'sweep-line over large coordinates, and 2D problems (compress each axis). ' +
-    'Everything downstream — prefix sums, difference arrays, BIT — is unchanged.',
+    'coordinate compression არის დახარისხება პლუს `lower_bound` — ადაპტერი, ' +
+    'რომელიც Fenwick-ის ხეს ან segment tree-ს ამუშავებს, როცა მნიშვნელობათა ' +
+    'დიაპაზონი ინდექსად ძალიან დიდია. ეს არის სტანდარტული პირველი ნაბიჯი offline ' +
+    'დიაპაზონურ-დათვლის ამოცანებზე, sweep-line-ზე დიდ კოორდინატებზე და 2D ' +
+    'ამოცანებზე (შეკუმშე თითო ღერძი). ყველაფერი შემდეგ — prefix sums, difference ' +
+    'arrays, BIT — უცვლელია.',
 
   prerequisites: ['sorting-techniques', 'frequency-arrays'],
   related: ['sorting-techniques', 'binary-search', 'fenwick-tree', 'segment-tree'],
@@ -294,13 +298,13 @@ for (int i = (int)r.size() - 1; i >= 0; i--) {
 export const CORE_TOPICS: CtTopic[] = [
   sortingTechniques,
   coordinateCompression,
-  slot('core', 'backtracking', 'Backtracking', 'უკუდახევა', 'essential', 3, {
+  slot('core', 'backtracking', 'Backtracking', 'უკან დაბრუნებით ძიება', 'essential', 3, {
     prerequisites: ['recursion'],
     related: ['bitmask-enumeration', 'dfs', 'constructive'],
     combinesWith: ['bitmask-enumeration', 'meet-in-the-middle'],
     next: ['bitmask-enumeration', 'constructive'],
   }),
-  slot('core', 'bitmask-enumeration', 'Bitmask Enumeration', 'ბიტმასკის ჩამოთვლა', 'important', 4, {
+  slot('core', 'bitmask-enumeration', 'Bitmask Enumeration', 'ბიტმასკების გადარჩევა', 'important', 4, {
     prerequisites: ['bit-manipulation', 'backtracking'],
     related: ['bitmask-dp', 'meet-in-the-middle'],
     combinesWith: ['bitmask-dp', 'meet-in-the-middle'],
@@ -321,25 +325,25 @@ export const CORE_TOPICS: CtTopic[] = [
 ];
 
 export const GREEDY_SEARCH_TOPICS: CtTopic[] = [
-  slot('greedy-search', 'greedy', 'Greedy & Exchange Argument', 'ხარბი ალგორითმები', 'essential', 1, {
+  slot('greedy-search', 'greedy', 'Greedy & Exchange Argument', 'ხარბი ალგორითმები და გაცვლის არგუმენტი', 'essential', 1, {
     prerequisites: ['sorting-techniques'],
     related: ['invariants', 'constructive', 'mst'],
     combinesWith: ['sorting-techniques', 'priority-queue'],
     next: ['binary-search-on-answer'],
   }),
-  slot('greedy-search', 'binary-search-on-answer', 'Binary Search on Answer', 'ბინარული ძებნა პასუხზე', 'essential', 2, {
+  slot('greedy-search', 'binary-search-on-answer', 'Binary Search on Answer', 'პასუხზე ორობითი ძებნა', 'essential', 2, {
     prerequisites: ['binary-search', 'greedy'],
     related: ['ternary-search', 'prefix-sums'],
     combinesWith: ['greedy', 'prefix-sums', 'two-pointers'],
     next: ['ternary-search'],
   }),
-  slot('greedy-search', 'ternary-search', 'Ternary Search', 'ტერნარული ძებნა', 'advanced', 3, {
+  slot('greedy-search', 'ternary-search', 'Ternary Search', 'სამობითი ძებნა', 'advanced', 3, {
     prerequisites: ['binary-search-on-answer'],
     related: ['binary-search'],
     combinesWith: ['binary-search-on-answer'],
     next: ['meet-in-the-middle'],
   }),
-  slot('greedy-search', 'meet-in-the-middle', 'Meet in the Middle', 'შუაში შეხვედრა', 'advanced', 4, {
+  slot('greedy-search', 'meet-in-the-middle', 'Meet in the Middle', 'შუაში შეხვედრის მეთოდი', 'advanced', 4, {
     prerequisites: ['bitmask-enumeration', 'sorting-techniques'],
     related: ['bitmask-dp', 'two-pointers'],
     combinesWith: ['two-pointers', 'binary-search'],
@@ -348,37 +352,37 @@ export const GREEDY_SEARCH_TOPICS: CtTopic[] = [
 ];
 
 export const GRAPH_TOPICS: CtTopic[] = [
-  slot('graphs', 'bfs', 'BFS', 'BFS', 'essential', 1, {
+  slot('graphs', 'bfs', 'BFS', 'სიგანეში ძიება', 'essential', 1, {
     prerequisites: ['recursion'],
     related: ['dfs', 'connected-components', '01-bfs'],
     combinesWith: ['connected-components', 'flood-fill'],
     next: ['dfs', 'connected-components'],
   }),
-  slot('graphs', 'dfs', 'DFS', 'DFS', 'essential', 2, {
+  slot('graphs', 'dfs', 'DFS', 'სიღრმეში ძიება', 'essential', 2, {
     prerequisites: ['recursion'],
     related: ['bfs', 'trees', 'topological-sort'],
     combinesWith: ['connected-components', 'topological-sort', 'tree-dp'],
     next: ['connected-components', 'topological-sort', 'trees'],
   }),
-  slot('graphs', 'connected-components', 'Connected Components', 'ბმული კომპონენტები', 'essential', 3, {
+  slot('graphs', 'connected-components', 'Connected Components', 'დაკავშირებული კომპონენტები', 'essential', 3, {
     prerequisites: ['bfs', 'dfs'],
     related: ['dsu', 'flood-fill'],
     combinesWith: ['dsu', 'flood-fill'],
     next: ['flood-fill', 'dsu'],
   }),
-  slot('graphs', 'flood-fill', 'Flood Fill', 'შევსება', 'important', 4, {
+  slot('graphs', 'flood-fill', 'Flood Fill', 'არეს შევსება', 'important', 4, {
     prerequisites: ['bfs', 'connected-components'],
     related: ['dfs', 'connected-components'],
     combinesWith: ['connected-components'],
     next: ['dijkstra'],
   }),
-  slot('graphs', 'topological-sort', 'Topological Sort', 'ტოპოლოგიური დახარისხება', 'essential', 5, {
+  slot('graphs', 'topological-sort', 'Topological Sort', 'ტოპოლოგიური დალაგება', 'essential', 5, {
     prerequisites: ['dfs'],
     related: ['dfs', 'dp-fundamentals'],
     combinesWith: ['dp-fundamentals', 'dfs'],
     next: ['dijkstra'],
   }),
-  slot('graphs', 'dijkstra', "Dijkstra's Algorithm", 'დейკსტრა', 'essential', 6, {
+  slot('graphs', 'dijkstra', "Dijkstra's Algorithm", 'დეიქსტრას ალგორითმი', 'essential', 6, {
     prerequisites: ['bfs', 'priority-queue'],
     related: ['01-bfs', 'mst'],
     combinesWith: ['priority-queue', 'binary-search-on-answer'],
@@ -396,19 +400,19 @@ export const GRAPH_TOPICS: CtTopic[] = [
     combinesWith: ['dsu', 'greedy'],
     next: [],
   }),
-  slot('graphs', 'dsu', 'Disjoint Set Union', 'გაერთიანება-პოვნა', 'essential', 9, {
+  slot('graphs', 'dsu', 'Disjoint Set Union (DSU)', 'განცალკევებული სიმრავლეების გაერთიანება', 'essential', 9, {
     prerequisites: ['connected-components'],
     related: ['mst', 'connected-components'],
     combinesWith: ['mst', 'sorting-techniques', 'coordinate-compression'],
     next: ['mst'],
   }),
-  slot('graphs', 'trees', 'Trees & Tree Traversal', 'ხეები', 'essential', 10, {
+  slot('graphs', 'trees', 'Trees & Tree Traversal', 'ხეები და ხეზე გავლა', 'essential', 10, {
     prerequisites: ['dfs'],
     related: ['tree-dp', 'lca'],
     combinesWith: ['tree-dp', 'lca', 'dfs'],
     next: ['lca', 'tree-dp'],
   }),
-  slot('graphs', 'lca', 'Lowest Common Ancestor', 'უახლოესი საერთო წინაპარი', 'advanced', 11, {
+  slot('graphs', 'lca', 'Lowest Common Ancestor (LCA)', 'უმცირესი საერთო წინაპარი', 'advanced', 11, {
     prerequisites: ['trees', 'sparse-table'],
     related: ['sparse-table', 'tree-dp'],
     combinesWith: ['sparse-table', 'tree-dp'],
@@ -447,7 +451,7 @@ export const DP_TOPICS: CtTopic[] = [
     combinesWith: ['prefix-sums'],
     next: ['bitmask-dp', 'tree-dp'],
   }),
-  slot('dp', 'bitmask-dp', 'Bitmask DP', 'ბიტმასკის DP', 'advanced', 6, {
+  slot('dp', 'bitmask-dp', 'Bitmask DP', 'ბიტმასკებზე DP', 'advanced', 6, {
     prerequisites: ['bitmask-enumeration', 'dp-fundamentals'],
     related: ['meet-in-the-middle', 'knapsack'],
     combinesWith: ['meet-in-the-middle'],
