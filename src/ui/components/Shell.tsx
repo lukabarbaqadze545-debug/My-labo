@@ -11,6 +11,8 @@ const PRIMARY = [
   { to: '/ask', glyph: '✦', key: 'ask' as const },
   { to: '/books', glyph: '📚', key: 'books' as const },
   { to: '/labs', glyph: '⬡', key: 'labs' as const },
+  { to: '/graph', glyph: '⁂', key: 'graph' as const },
+  { to: '/worlds', glyph: '◑', key: 'worlds' as const },
   { to: '/research', glyph: '✷', key: 'research' as const },
   { to: '/formulas', glyph: '∑', key: 'formulas' as const },
   { to: '/facts', glyph: '💡', key: 'facts' as const },

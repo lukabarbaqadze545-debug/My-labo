@@ -22,7 +22,22 @@ import {
   type UserQuestion,
   type UserSubject,
   type UserTopic,
+  type GraphPreferences,
+  type ConsequenceRecord,
+  type WorldRecord,
+  type KnowledgeEdgeRecord,
+  type KnowledgeNodeRecord,
+  DEFAULT_GRAPH_PREFERENCES,
 } from './db';
+import type { KnowledgeNodeType, RelationType } from '@/domain/knowledge/types';
+import { descendantsOf, wouldCycle } from '@/domain/worlds';
+import type {
+  Consequence,
+  ConsequenceKind,
+  ConsequenceLevel,
+  ParallelWorld,
+  WorldStatus,
+} from '@/domain/worlds';
 import type { Subject } from '@/content';
 import { previewToBook } from '@/domain/books';
 import type {
@@ -728,4 +743,359 @@ export async function exportAllData(): Promise<string> {
     null,
     2,
   );
+}
+
+/* --------------------------- knowledge graph ----------------------------- */
+
+/**
+ * Storage for hand-made graph data only. Derived nodes and edges are rebuilt
+ * from the library on every load and are deliberately never written here.
+ */
+
+export async function listGraphNodes(): Promise<KnowledgeNodeRecord[]> {
+  try {
+    return await db.knowledgeNodes.toArray();
+  } catch {
+    return [];
+  }
+}
+
+export async function listGraphEdges(): Promise<KnowledgeEdgeRecord[]> {
+  try {
+    return await db.knowledgeEdges.toArray();
+  } catch {
+    return [];
+  }
+}
+
+export interface NewGraphNode {
+  type: KnowledgeNodeType;
+  title: string;
+  description?: string;
+  subjectId?: string;
+  tags?: string[];
+  masteryLevel?: number;
+}
+
+export async function createGraphNode(input: NewGraphNode): Promise<KnowledgeNodeRecord | null> {
+  const title = input.title.trim();
+  if (!title) return null;
+  const now = Date.now();
+  const node: KnowledgeNodeRecord = {
+    id: newId('kn'),
+    type: input.type,
+    title,
+    ...(input.description?.trim() ? { description: input.description.trim() } : {}),
+    ...(input.subjectId ? { subjectId: input.subjectId } : {}),
+    tags: input.tags ?? [],
+    origin: 'manual',
+    ...(input.masteryLevel !== undefined
+      ? { masteryLevel: input.masteryLevel, masterySource: 'declared' as const }
+      : {}),
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.knowledgeNodes.add(node);
+  return node;
+}
+
+export async function updateGraphNode(
+  id: string,
+  patch: Partial<Omit<KnowledgeNodeRecord, 'id' | 'origin' | 'createdAt'>>,
+): Promise<void> {
+  const next: Partial<KnowledgeNodeRecord> = { ...patch, updatedAt: Date.now() };
+  // A level typed in by hand is a declaration, never an estimate.
+  if (patch.masteryLevel !== undefined) next.masterySource = 'declared';
+  await db.knowledgeNodes.update(id, next);
+}
+
+/**
+ * Delete a node and every hand-drawn edge touching it.
+ *
+ * Without the cascade the graph would keep edges pointing at something that no
+ * longer exists. Normalisation drops such edges defensively anyway, but
+ * leaving them in storage would slowly fill the table with dead rows and make
+ * an export carry connections the user cannot see.
+ */
+export async function deleteGraphNode(id: string): Promise<void> {
+  await db.transaction('rw', db.knowledgeNodes, db.knowledgeEdges, async () => {
+    await db.knowledgeNodes.delete(id);
+    const orphans = await db.knowledgeEdges
+      .filter((edge) => edge.sourceNodeId === id || edge.targetNodeId === id)
+      .toArray();
+    await db.knowledgeEdges.bulkDelete(orphans.map((edge) => edge.id));
+  });
+}
+
+export async function createGraphEdge(
+  sourceNodeId: string,
+  targetNodeId: string,
+  relationType: RelationType,
+  note?: string,
+): Promise<KnowledgeEdgeRecord | null> {
+  if (!sourceNodeId || !targetNodeId || sourceNodeId === targetNodeId) return null;
+
+  // The same relationship drawn twice is not an error worth showing; it is
+  // simply already there.
+  const existing = await db.knowledgeEdges
+    .filter(
+      (edge) =>
+        edge.sourceNodeId === sourceNodeId &&
+        edge.targetNodeId === targetNodeId &&
+        edge.relationType === relationType,
+    )
+    .first();
+  if (existing) return existing;
+
+  const edge: KnowledgeEdgeRecord = {
+    id: newId('ke'),
+    sourceNodeId,
+    targetNodeId,
+    relationType,
+    ...(note?.trim() ? { note: note.trim() } : {}),
+    origin: 'manual',
+    createdAt: Date.now(),
+  };
+  await db.knowledgeEdges.add(edge);
+  return edge;
+}
+
+export async function updateGraphEdge(
+  id: string,
+  patch: { relationType?: RelationType; note?: string },
+): Promise<void> {
+  await db.knowledgeEdges.update(id, patch);
+}
+
+export async function deleteGraphEdge(id: string): Promise<void> {
+  await db.knowledgeEdges.delete(id);
+}
+
+export async function getGraphPreferences(): Promise<GraphPreferences> {
+  try {
+    const stored = await db.graphPrefs.get('main');
+    return { ...DEFAULT_GRAPH_PREFERENCES, ...stored, key: 'main' };
+  } catch {
+    return DEFAULT_GRAPH_PREFERENCES;
+  }
+}
+
+export async function saveGraphPreferences(
+  patch: Partial<Omit<GraphPreferences, 'key' | 'updatedAt'>>,
+): Promise<void> {
+  const current = await getGraphPreferences();
+  await db.graphPrefs.put({ ...current, ...patch, key: 'main', updatedAt: Date.now() });
+}
+
+/** Replace or merge imported graph data. Import never touches derived data. */
+export async function importGraphData(
+  nodes: readonly KnowledgeNodeRecord[],
+  edges: readonly KnowledgeEdgeRecord[],
+  mode: 'merge' | 'replace' = 'merge',
+): Promise<void> {
+  await db.transaction('rw', db.knowledgeNodes, db.knowledgeEdges, async () => {
+    if (mode === 'replace') {
+      await db.knowledgeNodes.clear();
+      await db.knowledgeEdges.clear();
+    }
+    await db.knowledgeNodes.bulkPut([...nodes]);
+    // An imported edge whose endpoints are missing is dropped rather than
+    // stored: the graph builder would ignore it anyway.
+    const ids = new Set([...(await db.knowledgeNodes.toArray())].map((n) => n.id));
+    await db.knowledgeEdges.bulkPut(
+      edges.filter((edge) => ids.has(edge.sourceNodeId) && ids.has(edge.targetNodeId)),
+    );
+  });
+}
+
+/* --------------------------- parallel worlds ----------------------------- */
+
+export async function listWorlds(): Promise<WorldRecord[]> {
+  try {
+    return await db.worlds.toArray();
+  } catch {
+    return [];
+  }
+}
+
+export async function listConsequences(): Promise<ConsequenceRecord[]> {
+  try {
+    return await db.worldConsequences.toArray();
+  } catch {
+    return [];
+  }
+}
+
+export interface NewWorld {
+  title: string;
+  baseRule?: string;
+  changedRule?: string;
+  subjectId?: string;
+  topicIds?: string[];
+  parentId?: string;
+}
+
+export async function createWorld(input: NewWorld): Promise<WorldRecord | null> {
+  const title = input.title.trim();
+  if (!title) return null;
+  const now = Date.now();
+
+  const world: WorldRecord = {
+    id: newId('w'),
+    title,
+    baseRule: input.baseRule?.trim() ?? '',
+    changedRule: input.changedRule?.trim() ?? '',
+    ...(input.subjectId ? { subjectId: input.subjectId } : {}),
+    topicIds: input.topicIds ?? [],
+    openQuestions: [],
+    conclusion: '',
+    status: 'draft',
+    ...(input.parentId ? { parentId: input.parentId } : {}),
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.worlds.add(world);
+  return world;
+}
+
+/**
+ * Branch from an existing world.
+ *
+ * Only the divergence is stored. Base reality, subject and linked topics are
+ * left empty on purpose so they resolve through the parent at read time — a
+ * branch that copied them would quietly stop tracking edits to its parent.
+ */
+export async function branchWorld(
+  parentId: string,
+  title: string,
+  changedRule?: string,
+): Promise<WorldRecord | null> {
+  const parent = await db.worlds.get(parentId);
+  if (!parent) return null;
+  return createWorld({
+    title,
+    parentId,
+    ...(changedRule?.trim() ? { changedRule: changedRule.trim() } : {}),
+  });
+}
+
+export async function updateWorld(
+  id: string,
+  patch: Partial<Omit<ParallelWorld, 'id' | 'createdAt'>>,
+): Promise<void> {
+  await db.worlds.update(id, { ...patch, updatedAt: Date.now() });
+}
+
+export async function setWorldStatus(id: string, status: WorldStatus): Promise<void> {
+  await updateWorld(id, { status });
+}
+
+export async function toggleWorldFavorite(id: string): Promise<void> {
+  const world = await db.worlds.get(id);
+  if (!world) return;
+  await updateWorld(id, { favorite: !world.favorite });
+}
+
+/**
+ * Delete a world, its consequences, and — recursively — every branch beneath
+ * it. Leaving branches behind would orphan them; the caller is expected to
+ * have warned, because this destroys authored reasoning.
+ */
+export async function deleteWorld(id: string): Promise<void> {
+  await db.transaction('rw', db.worlds, db.worldConsequences, async () => {
+    const all = await db.worlds.toArray();
+    const doomed = [id, ...descendantsOf(id, all).map((w) => w.id)];
+    await db.worlds.bulkDelete(doomed);
+    const consequences = await db.worldConsequences
+      .filter((c) => doomed.includes(c.worldId))
+      .toArray();
+    await db.worldConsequences.bulkDelete(consequences.map((c) => c.id));
+  });
+}
+
+export interface NewConsequence {
+  worldId: string;
+  kind: ConsequenceKind;
+  level: ConsequenceLevel;
+  text: string;
+  causedBy?: string[];
+}
+
+export async function addConsequence(input: NewConsequence): Promise<ConsequenceRecord | null> {
+  const text = input.text.trim();
+  if (!text) return null;
+
+  const siblings = await db.worldConsequences.where('worldId').equals(input.worldId).toArray();
+  const consequence: ConsequenceRecord = {
+    id: newId('c'),
+    worldId: input.worldId,
+    kind: input.kind,
+    level: input.level,
+    text,
+    causedBy: input.causedBy ?? [],
+    order: siblings.length,
+    createdAt: Date.now(),
+  };
+  await db.worldConsequences.add(consequence);
+  await updateWorld(input.worldId, {});
+  return consequence;
+}
+
+export async function updateConsequence(
+  id: string,
+  patch: Partial<Omit<Consequence, 'id' | 'worldId' | 'createdAt'>>,
+): Promise<void> {
+  await db.worldConsequences.update(id, patch);
+}
+
+/** Link a consequence to the one it follows from, refusing to close a loop. */
+export async function linkConsequence(childId: string, parentId: string): Promise<boolean> {
+  const child = await db.worldConsequences.get(childId);
+  if (!child) return false;
+
+  const siblings = await db.worldConsequences.where('worldId').equals(child.worldId).toArray();
+  if (wouldCycle(childId, parentId, siblings)) return false;
+  if (child.causedBy.includes(parentId)) return true;
+
+  await db.worldConsequences.update(childId, { causedBy: [...child.causedBy, parentId] });
+  return true;
+}
+
+export async function unlinkConsequence(childId: string, parentId: string): Promise<void> {
+  const child = await db.worldConsequences.get(childId);
+  if (!child) return;
+  await db.worldConsequences.update(childId, {
+    causedBy: child.causedBy.filter((id) => id !== parentId),
+  });
+}
+
+/** Remove a consequence and every causal arrow pointing at it. */
+export async function deleteConsequence(id: string): Promise<void> {
+  await db.transaction('rw', db.worldConsequences, async () => {
+    const target = await db.worldConsequences.get(id);
+    await db.worldConsequences.delete(id);
+    if (!target) return;
+    const dependents = await db.worldConsequences
+      .where('worldId')
+      .equals(target.worldId)
+      .filter((c) => c.causedBy.includes(id))
+      .toArray();
+    for (const dependent of dependents) {
+      await db.worldConsequences.update(dependent.id, {
+        causedBy: dependent.causedBy.filter((x) => x !== id),
+      });
+    }
+  });
+}
+
+/** Merge imported worlds. Existing ids are overwritten by the file's version. */
+export async function importWorldsData(
+  worlds: readonly WorldRecord[],
+  consequences: readonly ConsequenceRecord[],
+): Promise<void> {
+  await db.transaction('rw', db.worlds, db.worldConsequences, async () => {
+    await db.worlds.bulkPut([...worlds]);
+    const ids = new Set((await db.worlds.toArray()).map((w) => w.id));
+    await db.worldConsequences.bulkPut(consequences.filter((c) => ids.has(c.worldId)));
+  });
 }

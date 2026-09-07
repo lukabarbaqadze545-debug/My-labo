@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ask, buildGrounding, type Answer, type AnswerRef } from '@/domain/assistant';
+import type { Answer, AnswerRef } from '@/domain/assistant';
 import {
   replay,
   resolvePack,
-  socraticPrompt,
-  socraticTurn,
   type Move,
   type MoveKind,
   type ReplayTurn,
@@ -17,7 +15,7 @@ import {
   type ConversationState,
   type PipelineTrace,
 } from '@/domain/conversation';
-import { AiError, streamChat, type ChatTurn } from '@/lib/claude';
+import { anthropicProvider, reason } from '@/domain/llm';
 import { db, ASSISTANT_MODES, type AiMessage, type AssistantMode } from '@/persistence/db';
 import type { BookCorpus, BookMode, BookScope } from '@/domain/books';
 import {
@@ -29,11 +27,12 @@ import {
   updateThread,
 } from '@/persistence/repositories';
 import { useT } from '../state/AppState';
-import { AiSettings, errorText, useAiSettings } from '../components/AiSettings';
+import { AiSettings, useAiSettings } from '../components/AiSettings';
 import { ReasoningPanel } from '../components/ReasoningPanel';
 import { DebugInspector } from '../components/DebugInspector';
 import { TeachPanel } from '../components/TeachPanel';
 import { useTeachings } from '../state/useTeachings';
+import { useKnowledgeGraph } from '../state/useKnowledgeGraph';
 import { saveAiSettings } from '@/persistence/repositories';
 import type { AliasEntry } from '@/language/ka';
 
@@ -55,38 +54,30 @@ interface Msg {
   answer?: Answer;
   note?: string;
   socratic?: SocraticMeta;
+  /** False when a claim in the answer could not be tied to the evidence. */
+  grounded?: boolean;
+  /** Page-accurate book citations behind the answer. */
+  citations?: string[];
 }
+
+type Labels = ReturnType<typeof useT>;
+
+/** Mode names and one-line explanations, keyed by the stored mode value. */
+const MODE_LABEL = (t: Labels): Record<AssistantMode, string> => ({
+  strict_labo: t.modes.strictLabo,
+  labo_llm: t.modes.laboLlm,
+  free_ai: t.modes.freeAi,
+});
+
+const MODE_HINT = (t: Labels): Record<AssistantMode, string> => ({
+  strict_labo: t.modes.strictLaboHint,
+  labo_llm: t.modes.laboLlmHint,
+  free_ai: t.modes.freeAiHint,
+});
 
 const LEGACY_KEY = 'labo:ask:v1';
 const ACTIVE_KEY = 'labo:ask:active';
 const uid = () => Math.random().toString(36).slice(2, 10);
-
-/**
- * The assistant's voice. This is deliberately long: the model needs a felt
- * sense of *how* a Georgian teenager and their tutor actually talk, not just a
- * topic list. Tone first, facts second.
- */
-const SYSTEM_BASE = [
-  'შენ ხარ „ლაბოს დამხმარე" — ცოცხალი, თბილი და ცნობისმოყვარე სასწავლო თანამოსაუბრე ქართველი მოსწავლისთვის.',
-  '',
-  'როგორ საუბრობ:',
-  '• წერ ბუნებრივ, სასაუბრო ქართულს — ისე, როგორც კარგი რეპეტიტორი ან უფროსი მეგობარი დაელაპარაკებოდა. არა ენციკლოპედიის ენით.',
-  '• იყენებ ცოცხალ დამაკავშირებლებს: „აბა ასე", „მოკლედ", „კარგი კითხვაა", „ახლა ვნახოთ", „მარტივად რომ ვთქვათ", „ე.ი.", „ჰოდა".',
-  '• პასუხი მოკლეა — ჩვეულებრივ 1–3 აბზაცი. სია მხოლოდ მაშინ, როცა ნამდვილად ეხმარება. არ გადააფორმატებ ყველაფერს სათაურებად და ბულეტებად.',
-  '• ერგები მოსაუბრის ტონს: თუ ის მოკლედ წერს, შენც მოკლედ უპასუხე; თუ ხუმრობს, შენც ცოტა მსუბუქად.',
-  '• სვამ დამაზუსტებელ კითხვას, როცა შეკითხვა ბუნდოვანია — არ გამოიცნობ ბრმად.',
-  '• ასწავლი სოკრატესებურად: ხან შენ სვამ პატარა კითხვას, რომ მოსწავლემ თვითონ მიხვდეს.',
-  '• პასუხს ამთავრებ ისე, რომ საუბარი გაგრძელდეს — მაგ. „გინდა უფრო ღრმად?" ან პატარა მაგალითით.',
-  '',
-  'რას აკეთებ და რას არა:',
-  '• იყენებ კონკრეტულ, ხელშესახებ მაგალითებს ქართული ცხოვრებიდან (ჩაი, მარშრუტკა, ჭადრაკი, მთა).',
-  '• როცა რაღაც არ იცი ან არ ხარ დარწმუნებული — პირდაპირ ამბობ: „ზუსტად არ ვიცი, მაგრამ…".',
-  '• არ იგონებ ფაქტებს, თარიღებს ან ციტატებს. ჯობია თქვა „არ ვარ დარწმუნებული".',
-  '• გახსოვს, რა თქვა მოსაუბრემ ამ საუბარში და მიბრუნდები მას.',
-  '• მავნე, საშიშ ან ასაკისთვის შეუფერებელ თხოვნაზე თავაზიანად ამბობ უარს და სთავაზობ სხვა გზას.',
-  '',
-  'თუ ქვემოთ მოცემულია ლაბოს ბიბლიოთეკის ამონარიდები — დაეყრდენი მათ და, სადაც ჯდება, მიუთითე თემა. თუ ამონარიდი არ არის, უპასუხე შენი ცოდნით და ეს აღნიშნე.',
-].join('\n');
 
 /* Personal statements worth remembering across chats. */
 const MEMORY_HINT =
@@ -114,6 +105,8 @@ function toMsg(s: AiMessage): Msg {
     phase: 'done',
     note: s.meta?.note,
     socratic: s.meta?.socratic,
+    ...(s.meta?.grounded !== undefined ? { grounded: s.meta.grounded } : {}),
+    ...(s.meta?.citations ? { citations: s.meta.citations } : {}),
     answer: hasExtras
       ? {
           text: s.text,
@@ -128,13 +121,15 @@ function toMsg(s: AiMessage): Msg {
 
 function toStored(m: Msg): AiMessage {
   const meta =
-    m.answer || m.note || m.socratic
+    m.answer || m.note || m.socratic || m.citations
       ? {
           sources: m.answer?.sources,
           related: m.answer?.related,
           followUps: m.answer?.followUps,
           note: m.note,
           socratic: m.socratic,
+          citations: m.citations,
+          grounded: m.grounded,
         }
       : undefined;
   return { id: m.id, role: m.role, text: m.text, at: Date.now(), meta };
@@ -209,6 +204,9 @@ export function AskPage() {
   const [lastTrace, setLastTrace] = useState<PipelineTrace | null>(null);
 
   const { extraAliases } = useTeachings();
+  // Relationship-aware retrieval: the graph can surface material the question's
+  // own words never mentioned. Structure and content stay separated downstream.
+  const { graph } = useKnowledgeGraph();
   const convRef = useRef<ConversationState>(emptyConversationState());
 
   /**
@@ -439,162 +437,75 @@ export function AskPage() {
   );
 
   /**
-   * Hybrid. The pipeline still decides what to say and supplies every fact;
-   * the model is allowed only to rewrite the wording. If the call fails, the
-   * engine's own text is already correct and is shown unchanged.
+   * Labo LLM and Free AI.
+   *
+   * `reason()` owns the whole path: the deterministic engine runs first and
+   * supplies retrieval, scoping, conversation state and a ready fallback, then
+   * the model reasons over the *evidence* that engine found and its claims are
+   * validated back against that evidence before anything is shown.
+   *
+   * Nothing here decides what to say. That is the point of the refactor: this
+   * component streams text and renders provenance.
    */
-  const runHybrid = useCallback(
-    async (q: string, botId: string) => {
-      const result = converse(convRef.current, q, {
-        socratic: socraticOn,
-        extraAliases,
-        bookScope,
-        bookCorpus,
-        languageCorpus,
-      });
-      convRef.current = result.state;
-      setLastTrace(result.trace);
-
+  const runLlm = useCallback(
+    async (q: string, botId: string, history: Msg[], mode: AssistantMode) => {
       const controller = new AbortController();
       abortRef.current = controller;
-      const system =
-        `${SYSTEM_BASE}\n\n--- მკაცრი წესი ---\n` +
-        'ქვემოთ მოცემულია ლაბოს მიერ მომზადებული პასუხი. მხოლოდ ბუნებრივად გადმოთქვი ქართულად. ' +
-        'არ დაამატო არც ერთი ახალი ფაქტი, თარიღი, სახელი ან წყარო. თუ პასუხი კითხვაა, კითხვად დატოვე.\n\n' +
-        `--- ლაბოს პასუხი ---\n${result.reply.text}`;
+      const memories = ai.memory ? await listMemories() : [];
 
-      let acc = '';
       try {
-        await streamChat(ai, {
-          system,
-          messages: [{ role: 'user', content: q }],
+        const result = await reason({
+          message: q,
+          state: convRef.current,
+          mode,
+          provider: anthropicProvider(ai),
+          socratic: socraticOn,
+          extraAliases,
+          bookScope,
+          bookCorpus,
+          languageCorpus,
+          graph,
+          memories: memories.map((m) => m.text),
+          history: history
+            .filter((m) => m.text.trim())
+            .map((m) => ({ role: m.role, content: m.text })),
           signal: controller.signal,
-          onText: (delta) => {
-            acc += delta;
-            patch(botId, (m) => ({ ...m, text: acc, shown: acc.length, phase: 'typing' }));
+          onText: (text) => {
+            patch(botId, (m) => ({ ...m, text, shown: text.length, phase: 'typing' }));
           },
         });
-      } catch {
-        acc = '';
-      } finally {
-        abortRef.current = null;
-      }
 
-      const finalText = acc.trim() || result.reply.text;
-      patch(botId, (m) => ({
-        ...m,
-        text: finalText,
-        shown: finalText.length,
-        phase: acc ? 'done' : 'typing',
-        answer: {
-          text: finalText,
-          confidence: result.reply.verdict === 'answer' ? 'high' : 'medium',
-          sources: result.reply.sources,
-          related: result.reply.related,
-          followUps: result.reply.suggestions,
-        },
-      }));
-    },
-    [ai, patch, socraticOn, extraAliases, bookScope, bookCorpus, languageCorpus],
-  );
+        convRef.current = result.state;
+        setLastTrace(result.trace.pipeline);
 
-  const runAi = useCallback(
-    async (q: string, botId: string, history: Msg[]) => {
-      const grounding = buildGrounding(q);
-      const engineTop = ask(q);
-      const memories = await listMemories();
-      const memoryBlock = memories.length
-        ? `\n\n--- რა იცი მოსაუბრის შესახებ ---\n${memories.map((m) => `• ${m.text}`).join('\n')}`
-        : '';
-
-      // In Socratic mode the engine has already decided the move. The model is
-      // a phrasing layer: it is handed one operation and told not to answer
-      // when the operation is a question. The library block is withheld on
-      // question moves so there is nothing to be tempted into explaining.
-      const socratic = socraticOn
-        ? socraticTurn({ history: toReplayTurns(history), utterance: q })
-        : null;
-      const libraryBlock =
-        grounding.context && (!socratic || !socratic.asked)
-          ? `\n\n--- ლაბოს ბიბლიოთეკიდან ---\n${grounding.context}`
-          : '';
-      const system = socratic
-        ? `${SYSTEM_BASE}${memoryBlock}\n\n${socraticPrompt(socratic)}${libraryBlock}`
-        : `${SYSTEM_BASE}${memoryBlock}${libraryBlock}`;
-      const socraticMeta: SocraticMeta | undefined = socratic
-        ? {
-            moveKind: socratic.move.kind,
-            ...(socratic.move.targetId ? { targetId: socratic.move.targetId } : {}),
-            key: socratic.move.key,
-            rationale: socratic.move.rationale,
-          }
-        : undefined;
-
-      const turns: ChatTurn[] = history
-        .filter((m) => m.text.trim())
-        .slice(-8)
-        .map((m) => ({ role: m.role, content: m.text }));
-      // The API requires the first message to be from the user.
-      while (turns.length && turns[0]!.role !== 'user') turns.shift();
-      turns.push({ role: 'user', content: q });
-
-      const controller = new AbortController();
-      abortRef.current = controller;
-      let acc = '';
-      try {
-        await streamChat(ai, {
-          system,
-          messages: turns,
-          signal: controller.signal,
-          onText: (delta) => {
-            acc += delta;
-            patch(botId, (m) => ({ ...m, text: acc, shown: acc.length, phase: 'typing' }));
-          },
-        });
-        patch(botId, (m) => ({
-          ...m,
-          text: acc || m.text,
-          shown: (acc || m.text).length,
-          phase: 'done',
-          ...(socraticMeta ? { socratic: socraticMeta } : {}),
-          answer: {
-            text: acc,
-            confidence: 'high',
-            sources: socratic ? socratic.move.sources : grounding.sources,
-            related: socratic?.asked ? [] : engineTop.related,
-            followUps: socratic?.asked ? [] : engineTop.followUps,
-          },
-        }));
-      } catch (err) {
-        const kind = err instanceof AiError ? err.kind : 'unknown';
-        if (kind === 'network' && controller.signal.aborted) {
+        // Stopping on purpose is not a failure: keep whatever had streamed in
+        // rather than replacing it with the engine's answer.
+        if (result.fallbackReason === 'aborted') {
           patch(botId, (m) => ({ ...m, phase: 'done' }));
           return;
         }
-        // Graceful degrade. In Socratic mode the engine's own phrasing already
-        // exists and needs no model, so the mode survives an API outage.
-        const fallbackText = socratic ? socratic.move.text : engineTop.text;
+
         patch(botId, (m) => ({
           ...m,
-          text: fallbackText,
-          ...(socraticMeta ? { socratic: socraticMeta } : {}),
-          answer: socratic
-            ? {
-                text: fallbackText,
-                confidence: socratic.asked ? 'chat' : 'high',
-                sources: socratic.move.sources,
-                related: [],
-                followUps: [],
-              }
-            : engineTop,
-          phase: 'typing',
-          note: `${errorText(kind, t)} · ${t.ai.fellBack}`,
+          text: result.text,
+          shown: result.text.length,
+          phase: result.fellBack ? 'typing' : 'done',
+          ...(result.fellBack ? { note: t.ai.fellBack } : {}),
+          grounded: result.grounded,
+          citations: result.citations,
+          answer: {
+            text: result.text,
+            confidence: result.grounded ? 'high' : 'medium',
+            sources: result.sources,
+            related: result.related,
+            followUps: result.suggestions,
+          },
         }));
       } finally {
         abortRef.current = null;
       }
     },
-    [ai, patch, t, socraticOn],
+    [ai, patch, t, socraticOn, extraAliases, bookScope, bookCorpus, languageCorpus, graph],
   );
 
   const msgsRef = useRef(msgs);
@@ -628,14 +539,13 @@ export function AskPage() {
         userMsg,
         { id: botId, role: 'assistant' as const, text: '', shown: 0, phase: 'thinking' as const },
       ]);
-      // Strict is the default and the fallback: the model only participates
+      // Strict Labo is the floor and the fallback: the model only participates
       // when a key exists *and* the user chose a mode that wants it.
-      const mode: AssistantMode = aiOn ? ai.mode : 'strict';
-      if (mode === 'ai') void runAi(q, botId, history);
-      else if (mode === 'hybrid') void runHybrid(q, botId);
-      else runConversation(q, botId);
+      const mode: AssistantMode = aiOn ? ai.mode : 'strict_labo';
+      if (mode === 'strict_labo') runConversation(q, botId);
+      else void runLlm(q, botId, history, mode);
     },
-    [busy, aiOn, ai.memory, ai.mode, activeId, socraticOn, runAi, runHybrid, runConversation],
+    [busy, aiOn, ai.memory, ai.mode, activeId, socraticOn, runLlm, runConversation],
   );
 
   const sendNow = useCallback((raw: string) => void send(raw), [send]);
@@ -704,92 +614,115 @@ export function AskPage() {
 
   return (
     <div className="page ask-page">
-      <header className="hero">
-        <h1 className="hero__title">{t.assistant.title}</h1>
-        <p className="hero__sub">{t.assistant.subtitle}</p>
+      <header className="ask-head">
+        <h1 className="ask-head__title">{t.assistant.title}</h1>
+        <p className="ask-head__sub">{t.assistant.subtitle}</p>
       </header>
 
-      <div className="ask-modebar">
-        <button className="ask-mode" onClick={() => setRailOpen((v) => !v)}>
-          <span aria-hidden="true">☰</span> {t.assistant.chats}
-        </button>
-        <button className="btn btn--ghost btn--sm" onClick={newChat}>
-          + {t.assistant.newChat}
-        </button>
-        <button
-          className={`ask-mode${socraticOn ? ' ask-mode--socratic' : ''}`}
-          onClick={toggleSocratic}
-          aria-pressed={socraticOn}
-        >
-          <span aria-hidden="true">🜁</span> {t.assistant.socratic}
-        </button>
-        <div className="ask-modes" role="group" aria-label={t.modes.label}>
+      {/*
+        The toolbar is grouped rather than a single run of pills: session
+        actions, then what the assistant may answer from, then view toggles.
+        Grouping is what makes it scannable — the middle group is the only one
+        that changes answers, so it is the only one that carries weight.
+      */}
+      <div className="ask-bar">
+        <div className="ask-bar__group">
+          <button className="ask-tool ask-tool--rail" onClick={() => setRailOpen((v) => !v)}>
+            <span aria-hidden="true">☰</span> {t.assistant.chats}
+          </button>
+          <button className="ask-tool" onClick={newChat}>
+            <span aria-hidden="true">+</span> {t.assistant.newChat}
+          </button>
+        </div>
+
+        <div className="ask-bar__group ask-bar__group--scope">
+          <div className="ask-modes" role="group" aria-label={t.modes.label}>
           {ASSISTANT_MODES.map((mode) => {
-            const locked = mode !== 'strict' && !aiOn;
+            const locked = mode !== 'strict_labo' && !aiOn;
+            // Highlight what is actually answering, not what is merely stored:
+            // without a key the chosen LLM mode is not the one running, and
+            // showing it as active would misreport where the answer came from.
+            const effective = aiOn ? ai.mode : 'strict_labo';
             return (
               <button
                 key={mode}
-                className={`ask-modes__btn${ai.mode === mode ? ' is-active' : ''}`}
+                className={`ask-modes__btn${effective === mode ? ' is-active' : ''}`}
                 disabled={locked}
-                title={
-                  locked
-                    ? t.ai.aiNotSet
-                    : mode === 'strict'
-                      ? t.modes.strictHint
-                      : mode === 'hybrid'
-                        ? t.modes.hybridHint
-                        : t.modes.aiHint
-                }
+                title={locked ? t.ai.aiNotSet : MODE_HINT(t)[mode]}
                 onClick={() => void saveAiSettings({ mode })}
               >
-                {mode === 'strict' ? t.modes.strict : mode === 'hybrid' ? t.modes.hybrid : t.modes.ai}
+                {MODE_LABEL(t)[mode]}
               </button>
             );
           })}
         </div>
-        {bookCorpus.books.length > 0 ? (
-          <select
-            className="input input--sm ask-bookmode"
-            value={ai.bookMode}
-            title={t.books.modeLabel}
-            onChange={(e) => {
-              const mode = e.target.value as BookMode;
-              const ids =
-                mode === 'book' && ai.bookIds.length === 0 && bookCorpus.books[0]
-                  ? [bookCorpus.books[0].id]
-                  : ai.bookIds;
-              void saveAiSettings({ bookMode: mode, bookIds: ids });
-            }}
+          {bookCorpus.books.length > 0 ? (
+            <select
+              className="ask-select"
+              value={ai.bookMode}
+              title={t.books.modeLabel}
+              onChange={(e) => {
+                const mode = e.target.value as BookMode;
+                const ids =
+                  mode === 'book' && ai.bookIds.length === 0 && bookCorpus.books[0]
+                    ? [bookCorpus.books[0].id]
+                    : ai.bookIds;
+                void saveAiSettings({ bookMode: mode, bookIds: ids });
+              }}
+            >
+              <option value="off">📚 {t.books.modeOff}</option>
+              <option value="book">📕 {t.books.modeBook}</option>
+              <option value="selected">📗 {t.books.modeSelected}</option>
+              <option value="library">📚 {t.books.modeLibrary}</option>
+              <option value="with_labo">✦📚 {t.books.modeWithLabo}</option>
+            </select>
+          ) : null}
+        </div>
+
+        <div className="ask-bar__group ask-bar__group--toggles">
+          <button
+            className={`ask-tool${socraticOn ? ' is-on' : ''}`}
+            onClick={toggleSocratic}
+            aria-pressed={socraticOn}
+            title={t.assistant.socratic}
           >
-            <option value="off">📚 {t.books.modeOff}</option>
-            <option value="book">📕 {t.books.modeBook}</option>
-            <option value="selected">📗 {t.books.modeSelected}</option>
-            <option value="library">📚 {t.books.modeLibrary}</option>
-            <option value="with_labo">✦📚 {t.books.modeWithLabo}</option>
-          </select>
-        ) : null}
-        <button className="ask-mode" onClick={() => setShowTeach((v) => !v)}>
-          <span aria-hidden="true">✎</span> {t.teach.open}
-        </button>
-        <button
-          className={`ask-mode${aiOn ? ' ask-mode--ai' : ''}`}
-          onClick={() => setShowSettings((v) => !v)}
-        >
-          <span aria-hidden="true">✦</span> {aiOn ? t.ai.modeAi : t.ai.modeLibrary}
-          <span className="ask-mode__gear" aria-hidden="true">⚙</span>
-        </button>
-        <button
-          className={`ask-mode${showDebug ? ' ask-mode--socratic' : ''}`}
-          onClick={() => setShowDebug((v) => !v)}
-          aria-pressed={showDebug}
-        >
-          <span aria-hidden="true">⌥</span> {t.debug.toggle}
-        </button>
+            <span aria-hidden="true">🜁</span>
+            <span className="ask-tool__label">{t.assistant.socratic}</span>
+          </button>
+          <button
+            className={`ask-tool${showTeach ? ' is-on' : ''}`}
+            onClick={() => setShowTeach((v) => !v)}
+            aria-pressed={showTeach}
+            title={t.teach.open}
+          >
+            <span aria-hidden="true">✎</span>
+            <span className="ask-tool__label">{t.teach.open}</span>
+          </button>
+          <button
+            className={`ask-tool${showSettings ? ' is-on' : ''}`}
+            onClick={() => setShowSettings((v) => !v)}
+            aria-pressed={showSettings}
+            title={aiOn ? t.ai.modeAi : t.ai.modeLibrary}
+          >
+            <span aria-hidden="true">✦</span>
+            <span className="ask-tool__label">{aiOn ? t.ai.modeAi : t.ai.modeLibrary}</span>
+            <span className="ask-tool__gear" aria-hidden="true">⚙</span>
+          </button>
+          <button
+            className={`ask-tool${showDebug ? ' is-on' : ''}`}
+            onClick={() => setShowDebug((v) => !v)}
+            aria-pressed={showDebug}
+            title={t.debug.toggle}
+          >
+            <span aria-hidden="true">⌥</span>
+            <span className="ask-tool__label">{t.debug.toggle}</span>
+          </button>
+        </div>
       </div>
 
       {showTeach ? (
         <div className="ask-settingspanel">
-          <p className="hero__sub" style={{ marginBottom: 'var(--space-3)' }}>{t.teach.title}</p>
+          <p className="ask-panel__title">{t.teach.title}</p>
           <TeachPanel />
         </div>
       ) : null}
@@ -808,7 +741,7 @@ export function AskPage() {
 
       {showSettings ? (
         <div className="ask-settingspanel">
-          <p className="hero__sub" style={{ marginBottom: 'var(--space-3)' }}>{t.ai.subtitle}</p>
+          <p className="ask-panel__title">{t.ai.subtitle}</p>
           <AiSettings />
         </div>
       ) : null}
@@ -819,7 +752,7 @@ export function AskPage() {
         }`}
       >
         <aside className="ask-rail">
-          <button className="btn btn--primary btn--sm ask-rail__new" onClick={newChat}>
+          <button className="btn btn--ghost btn--sm ask-rail__new" onClick={newChat}>
             + {t.assistant.newChat}
           </button>
           <ul className="ask-rail__list">
@@ -883,6 +816,11 @@ export function AskPage() {
         </aside>
 
         <div className="ask-main">
+          {/*
+            Thread and composer live inside one bordered surface so the page
+            reads as a single workspace rather than a stack of loose widgets.
+          */}
+          <div className="ask-workspace">
           <div className="ask-thread" ref={scrollRef}>
             {msgs.length === 0 ? (
               <div className="ask-empty">
@@ -915,9 +853,9 @@ export function AskPage() {
                     </div>
                   </div>
                 ) : (
-                  <div key={m.id} className="ask-msg ask-msg--bot">
+                  <article key={m.id} className="ask-msg ask-msg--bot">
                     <span className="ask-avatar" aria-hidden="true">✦</span>
-                    <div className="ask-bubble">
+                    <div className="ask-answer">
                       {m.phase === 'thinking' ? (
                         <span className="ask-dots" aria-label={t.assistant.thinking}>
                           <span />
@@ -931,29 +869,35 @@ export function AskPage() {
                             {m.phase === 'typing' ? <span className="ask-caret" /> : null}
                           </div>
                           {m.note ? <p className="ask-note">{m.note}</p> : null}
+                          {m.phase === 'done' && m.citations?.length ? (
+                            <p className="ask-cites">
+                              <span className="ask-cites__label">{t.modes.citations}</span>
+                              {m.citations.join(' · ')}
+                            </p>
+                          ) : null}
                           {m.phase === 'done' && m.answer ? (
                             <AnswerExtras answer={m.answer} onFollowUp={sendNow} labels={t.assistant} />
                           ) : null}
                         </>
                       )}
                     </div>
-                  </div>
+                  </article>
                 ),
               )
             )}
           </div>
 
-          {savedMemo ? <p className="ask-note ask-note--ok">{t.ai.memorySaved}</p> : null}
+          {savedMemo ? <p className="ask-note ask-note--ok ask-note--inline">{t.ai.memorySaved}</p> : null}
 
           <form
-            className="ask-input"
+            className="ask-composer"
             onSubmit={(e) => {
               e.preventDefault();
               sendNow(input);
             }}
           >
             <textarea
-              className="textarea"
+              className="textarea ask-composer__input"
               rows={1}
               placeholder={t.assistant.placeholder}
               value={input}
@@ -965,22 +909,23 @@ export function AskPage() {
                 }
               }}
             />
-            <button className="btn btn--primary" type="submit" disabled={!input.trim() || busy}>
+            <button
+              className="btn btn--primary ask-composer__send"
+              type="submit"
+              disabled={!input.trim() || busy}
+            >
               {busy ? t.assistant.thinking : t.assistant.send}
             </button>
           </form>
 
-          {showDebug && lastTrace ? <DebugInspector trace={lastTrace} /> : null}
-
           <div className="ask-foot">
-            <span className="xsmall muted">
-              {ai.mode === 'strict' || !aiOn
-                ? t.modes.strictHint
-                : ai.mode === 'hybrid'
-                  ? t.modes.hybridHint
-                  : t.ai.privacy.split('.')[0] + '.'}
+            <span className="ask-foot__hint">
+              {aiOn ? MODE_HINT(t)[ai.mode] : t.modes.strictLaboHint}
             </span>
           </div>
+          </div>
+
+          {showDebug && lastTrace ? <DebugInspector trace={lastTrace} /> : null}
         </div>
 
         {reasoning && showMap ? (
@@ -1015,10 +960,10 @@ function AnswerExtras({
       {rows.map((row) =>
         row.items.length === 0 ? null : (
           <div key={row.label} className="ask-extras__row">
-            <span className="ask-extras__label">{row.label}:</span>
+            <span className="ask-extras__label">{row.label}</span>
             {row.items.map((it) =>
               typeof it === 'string' ? (
-                <button key={it} className="ask-chip ask-chip--sm" onClick={() => onFollowUp(it)}>
+                <button key={it} className="ask-chip ask-chip--sm ask-chip--action" onClick={() => onFollowUp(it)}>
                   {it}
                 </button>
               ) : row.link ? (

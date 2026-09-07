@@ -9,6 +9,13 @@ import type {
   BookSection,
 } from '@/domain/books/types';
 import type { LanguageCorpus } from '@/domain/language/types';
+import type { ReasoningMode } from '@/domain/llm/types';
+import type {
+  KnowledgeEdge,
+  KnowledgeNode,
+  KnowledgeNodeType,
+} from '@/domain/knowledge/types';
+import type { Consequence, ParallelWorld } from '@/domain/worlds/types';
 
 /**
  * All personal data lives locally in IndexedDB. There is no account and no
@@ -111,6 +118,55 @@ export interface UserTopic extends Omit<Topic, 'sections'> {
   updatedAt: number;
 }
 
+/* --------------------------- knowledge graph ----------------------------- */
+
+/**
+ * Only *hand-made* graph data is stored.
+ *
+ * Every edge that can be derived — a topic belonging to a subject, an authored
+ * relation in `relations.ts`, a note anchored to a topic — is recomputed on
+ * load instead. Persisting those would create a second copy of the library's
+ * structure that silently rots the moment content changes.
+ */
+export type KnowledgeNodeRecord = KnowledgeNode;
+export type KnowledgeEdgeRecord = KnowledgeEdge;
+
+/** View state for the graph page, so it opens where it was left. */
+export interface GraphPreferences {
+  key: 'main';
+  /** Node types shown. Empty means "all". */
+  types: KnowledgeNodeType[];
+  subjectIds: string[];
+  /** Neighbourhood depth when a node is focused. */
+  depth: number;
+  showLabels: boolean;
+  updatedAt: number;
+}
+
+export const DEFAULT_GRAPH_PREFERENCES: GraphPreferences = {
+  key: 'main',
+  // Opening on every fact, formula and person at once is unreadable; the
+  // default view is the shape of the library, and the rest is a filter away.
+  types: ['subject', 'topic', 'concept', 'project', 'technology', 'goal', 'idea'],
+  subjectIds: [],
+  depth: 1,
+  showLabels: true,
+  updatedAt: 0,
+};
+
+/* --------------------------- parallel worlds ----------------------------- */
+
+/**
+ * A thought experiment and its consequences.
+ *
+ * Consequences live in their own table rather than inline on the world: they
+ * are edited one at a time, they carry a causal map between themselves, and a
+ * world with forty of them should not be rewritten to add the forty-first.
+ * Links to Labo subjects and topics are stored as ids — never copies.
+ */
+export type WorldRecord = ParallelWorld;
+export type ConsequenceRecord = Consequence;
+
 /* ------------------------------- pomodoro -------------------------------- */
 
 export type PomodoroPhase = 'focus' | 'short' | 'long';
@@ -194,15 +250,18 @@ export type AiModel = (typeof AI_MODELS)[number];
 /**
  * How the assistant is allowed to answer.
  *
- *  strict — Luka's Labo knowledge and deterministic reasoning only. No model.
- *  hybrid — Labo retrieves and decides; the model only rewrites the wording.
- *  ai     — the model answers, grounded by retrieval.
+ *  strict_labo — deterministic pipeline only. No model, no network.
+ *  labo_llm    — the model reasons, but only over retrieved Labo knowledge.
+ *  free_ai     — the model may also draw on what it knows outside the library.
  *
- * `strict` is the default: the engine must be good on its own, and nothing
- * should silently depend on an external service.
+ * `labo_llm` is the main mode. `strict_labo` remains the floor: without a key,
+ * or when a call fails, the deterministic engine answers and nothing breaks.
+ *
+ * The type is the reasoning layer's own union, so a mode can never be stored
+ * here that the orchestrator does not understand.
  */
-export const ASSISTANT_MODES = ['strict', 'hybrid', 'ai'] as const;
-export type AssistantMode = (typeof ASSISTANT_MODES)[number];
+export const ASSISTANT_MODES: readonly ReasoningMode[] = ['strict_labo', 'labo_llm', 'free_ai'];
+export type AssistantMode = ReasoningMode;
 
 /**
  * Optional "bring your own key" AI. The key is stored only in this browser's
@@ -231,7 +290,7 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
   enabled: false,
   model: 'claude-opus-5',
   memory: true,
-  mode: 'strict',
+  mode: 'labo_llm',
   bookMode: 'off',
   bookIds: [],
   updatedAt: 0,
@@ -256,6 +315,10 @@ export interface AiMessage {
     socratic?: { moveKind: string; targetId?: string; key: string; rationale?: string };
     /** Set on turns produced by the conversational pipeline. */
     conv?: { concept?: string; action?: string; verdict?: string };
+    /** Page-accurate book citations the answer relied on. */
+    citations?: string[];
+    /** False when a claim in the answer could not be tied to the evidence. */
+    grounded?: boolean;
   };
 }
 
@@ -342,6 +405,11 @@ export class LaboDatabase extends Dexie {
   aiSettings!: Table<AiSettings, string>;
   aiThreads!: Table<AiThread, string>;
   aiMemories!: Table<AiMemory, string>;
+  knowledgeNodes!: Table<KnowledgeNodeRecord, string>;
+  knowledgeEdges!: Table<KnowledgeEdgeRecord, string>;
+  graphPrefs!: Table<GraphPreferences, string>;
+  worlds!: Table<WorldRecord, string>;
+  worldConsequences!: Table<ConsequenceRecord, string>;
   userAliases!: Table<UserAlias, string>;
   userKnowledge!: Table<UserKnowledge, string>;
   /**
@@ -496,6 +564,92 @@ export class LaboDatabase extends Dexie {
       bookKnowledge: 'id, bookId, type, concept',
       bookRelations: 'id, bookId, from, to',
       languageCorpus: 'key',
+    });
+    /*
+     * v9 renames the answering modes. No store changes, so the schema is
+     * inherited; only the single settings row is rewritten. The old names map
+     * onto the new ones by intent: `hybrid` wanted the model involved but
+     * bounded by Labo's knowledge, which is exactly `labo_llm`.
+     */
+    this.version(9).upgrade(async (tx) => {
+      const table = tx.table('aiSettings');
+      const row = await table.get('main');
+      if (!row) return;
+      const moved: Record<string, ReasoningMode> = {
+        strict: 'strict_labo',
+        hybrid: 'labo_llm',
+        ai: 'free_ai',
+      };
+      const next = moved[row.mode as string];
+      if (next) await table.put({ ...row, mode: next });
+    });
+    /*
+     * v10 adds the knowledge graph's own storage. Existing stores are repeated
+     * because `stores()` replaces the whole schema; the three new tables hold
+     * only hand-made nodes, hand-drawn edges and view preferences.
+     */
+    this.version(10).stores({
+      notes: 'id, kind, topicId, subjectId, createdAt, updatedAt',
+      bookmarks: 'id, entityId, entityKind, subjectId, createdAt',
+      questions: 'id, subjectId, createdAt, answeredAt',
+      interactions: '++id, subjectId, topicId, type, at',
+      activityProgress: 'activityId, completedAt, updatedAt',
+      preferences: 'key',
+      userSubjects: 'id, group, createdAt',
+      subjectOverrides: 'subjectId',
+      userTopics: 'id, subjectId, createdAt',
+      pomodoroSessions: 'id, startedAt, dateKey, subjectId',
+      pomodoroSettings: 'key',
+      documents: 'id, updatedAt, subjectId, trashedAt',
+      aiSettings: 'key',
+      aiThreads: 'id, updatedAt, createdAt, pinned',
+      aiMemories: 'id, createdAt, kind',
+      userAliases: 'id, concept, createdAt',
+      userKnowledge: 'id, kind, topicId, concept, createdAt',
+      books: 'id, title, importedAt, status',
+      bookSections: 'id, bookId, order',
+      bookChunks: 'id, bookId, sectionId, order',
+      bookKnowledge: 'id, bookId, type, concept',
+      bookRelations: 'id, bookId, from, to',
+      languageCorpus: 'key',
+      knowledgeNodes: 'id, type, subjectId, updatedAt',
+      knowledgeEdges: 'id, sourceNodeId, targetNodeId, relationType',
+      graphPrefs: 'key',
+    });
+    /*
+     * v11 adds Parallel Worlds. Stores are repeated because `stores()`
+     * replaces the whole schema; `parentId` is indexed so branch lookups do
+     * not scan, and `worldId` so a world's consequences load directly.
+     */
+    this.version(11).stores({
+      notes: 'id, kind, topicId, subjectId, createdAt, updatedAt',
+      bookmarks: 'id, entityId, entityKind, subjectId, createdAt',
+      questions: 'id, subjectId, createdAt, answeredAt',
+      interactions: '++id, subjectId, topicId, type, at',
+      activityProgress: 'activityId, completedAt, updatedAt',
+      preferences: 'key',
+      userSubjects: 'id, group, createdAt',
+      subjectOverrides: 'subjectId',
+      userTopics: 'id, subjectId, createdAt',
+      pomodoroSessions: 'id, startedAt, dateKey, subjectId',
+      pomodoroSettings: 'key',
+      documents: 'id, updatedAt, subjectId, trashedAt',
+      aiSettings: 'key',
+      aiThreads: 'id, updatedAt, createdAt, pinned',
+      aiMemories: 'id, createdAt, kind',
+      userAliases: 'id, concept, createdAt',
+      userKnowledge: 'id, kind, topicId, concept, createdAt',
+      books: 'id, title, importedAt, status',
+      bookSections: 'id, bookId, order',
+      bookChunks: 'id, bookId, sectionId, order',
+      bookKnowledge: 'id, bookId, type, concept',
+      bookRelations: 'id, bookId, from, to',
+      languageCorpus: 'key',
+      knowledgeNodes: 'id, type, subjectId, updatedAt',
+      knowledgeEdges: 'id, sourceNodeId, targetNodeId, relationType',
+      graphPrefs: 'key',
+      worlds: 'id, parentId, subjectId, status, updatedAt, createdAt',
+      worldConsequences: 'id, worldId, level, kind',
     });
   }
 }

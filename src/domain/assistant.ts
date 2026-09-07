@@ -455,25 +455,60 @@ function fallback(seed: number): Answer {
 
 /* ------------------------------ entrypoint ---------------------------- */
 
+/** One retrieved library passage, before it is formatted for anything. */
+export interface GroundingItem {
+  title: string;
+  text: string;
+  ref?: AnswerRef;
+}
+
+/**
+ * The top matching library passages as *structured* items.
+ *
+ * The reasoning layer needs each passage separately so it can give the model a
+ * citable id and check afterwards which one a claim actually came from. Joining
+ * them into one string first, then trying to split it back apart, loses exactly
+ * the association that grounding depends on.
+ */
+export function groundingItems(query: string, limit = 4): GroundingItem[] {
+  const terms = contentTerms(tokenize(query));
+  if (terms.length === 0) return [];
+  const hits = retrieve(terms, index()).slice(0, limit).filter((h) => h.score >= 2);
+
+  return hits.map((hit) => {
+    const composed = answerForDoc(hit.doc, [], 0);
+    const ref = composed.sources[0];
+    return { title: hit.doc.title, text: composed.text, ...(ref ? { ref } : {}) };
+  });
+}
+
+/**
+ * One topic's passage, by id.
+ *
+ * `groundingItems` retrieves by query; the knowledge graph arrives holding ids
+ * instead — a topic reached through a relationship rather than through a word
+ * match — and still needs real text before it can count as evidence.
+ */
+export function topicPassage(topicId: string, limit = 600): string {
+  const topic = library.topicById.get(topicId);
+  if (!topic) return '';
+  const whatIs = sectionText(topic, 'whatIs', limit);
+  const why = sectionText(topic, 'whyInteresting', Math.floor(limit / 2));
+  return [whatIs, why].filter(Boolean).join('\n\n');
+}
+
 /**
  * Retrieval context for the optional LLM path: the top matching library
  * passages, formatted for a system prompt, plus the refs they came from so the
  * UI can still show "Sources" even though the model's prose is free-form.
  */
 export function buildGrounding(query: string): { context: string; sources: AnswerRef[] } {
-  const terms = contentTerms(tokenize(query));
-  if (terms.length === 0) return { context: '', sources: [] };
-  const hits = retrieve(terms, index()).slice(0, 4).filter((h) => h.score >= 2);
-  if (hits.length === 0) return { context: '', sources: [] };
-
-  const blocks: string[] = [];
-  const sources: AnswerRef[] = [];
-  for (const hit of hits) {
-    const composed = answerForDoc(hit.doc, [], 0);
-    blocks.push(`### ${hit.doc.title}\n${composed.text}`);
-    if (composed.sources[0]) sources.push(composed.sources[0]);
-  }
-  return { context: blocks.join('\n\n'), sources };
+  const items = groundingItems(query);
+  if (items.length === 0) return { context: '', sources: [] };
+  return {
+    context: items.map((i) => `### ${i.title}\n${i.text}`).join('\n\n'),
+    sources: items.map((i) => i.ref).filter((r): r is AnswerRef => Boolean(r)),
+  };
 }
 
 export function ask(query: string): Answer {

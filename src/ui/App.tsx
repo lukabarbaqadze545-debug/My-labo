@@ -24,6 +24,10 @@ import { NotFoundPage } from './pages/NotFoundPage';
 
 // The writing room pulls in the editor (~ProseMirror) and, on demand, the Word
 // and PowerPoint format libraries — all kept out of the initial bundle.
+const WorldsPage = lazy(() => import('./pages/WorldsPage').then((m) => ({ default: m.WorldsPage })));
+const KnowledgeGraphPage = lazy(() =>
+  import('./pages/KnowledgeGraphPage').then((m) => ({ default: m.KnowledgeGraphPage })),
+);
 const DocumentsPage = lazy(() =>
   import('./pages/documents/DocumentsPage').then((m) => ({ default: m.DocumentsPage })),
 );
@@ -52,6 +56,8 @@ export function App() {
                 <Route path="/books" element={<BooksPage />} />
                 <Route path="/write" element={<DocumentsPage />} />
                 <Route path="/write/:id" element={<DocumentEditorPage />} />
+                <Route path="/graph" element={<KnowledgeGraphPage />} />
+                <Route path="/worlds" element={<WorldsPage />} />
                 <Route path="/labs" element={<LabsPage />} />
                 <Route path="/labs/:subjectId" element={<SubjectPage />} />
                 <Route path="/topics/:topicId" element={<TopicPage />} />

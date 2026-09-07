@@ -1,22 +1,261 @@
 /*
- * The library assistant — a chat surface over the retrieval engine.
- * The "feels like a chatbot" cues (thinking dots, typewriter caret) live here.
+ * The Ask workspace.
+ *
+ * One page, three regions: a compact header, a grouped control bar, and a
+ * single bordered workspace holding the conversation and its composer. The
+ * guiding rule is that only one thing on screen may be loud — the primary
+ * action and the active mode carry the accent; everything else is neutral
+ * surface and hairline. Borders are spent on containers, not on every widget.
  */
 
 .ask-page {
-  max-width: 780px;
+  max-width: var(--shell-max);
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 220px);
+  gap: var(--space-4);
+}
+
+/* -------------------------------- header -------------------------------- */
+
+/*
+ * Deliberately smaller than the display heading other pages use: this is a
+ * working surface people return to many times a day, and a 3rem serif title
+ * pushes the actual conversation below the fold for no benefit.
+ */
+/*
+ * Compact, but not cramped: the old hero reserved 3rem above the title, which
+ * is too much for a working surface and too little clearance is worse — the
+ * sticky top bar sits right on it. This keeps the page's rhythm consistent
+ * with the rest of the app while staying far shorter than a display heading.
+ */
+.ask-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-block-start: var(--space-3);
+}
+
+@media (max-width: 899px) {
+  .ask-head {
+    padding-block-start: var(--space-5);
+  }
+}
+
+.ask-head__title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  line-height: var(--leading-tight);
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.ask-head__sub {
+  margin: 0;
+  max-width: 64ch;
+  font-size: var(--text-sm);
+  line-height: var(--leading-tight);
+  color: var(--ink-3);
+}
+
+/* ------------------------------ control bar ----------------------------- */
+
+.ask-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  /* Scrolls rather than wrapping into a ragged second row on narrow screens. */
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.ask-bar__group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+}
+
+/* The only group that changes what the assistant answers from. */
+.ask-bar__group--scope {
+  gap: var(--space-2);
+  padding-inline: var(--space-3);
+  border-inline: 1px solid var(--line-faint);
+}
+
+.ask-bar__group--toggles {
+  margin-inline-start: auto;
+}
+
+/* A quiet, borderless control. It gains a surface only when it is on, so a
+   row of them reads as text until something is actually active. */
+.ask-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+
+.ask-tool:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.ask-tool.is-on {
+  border-color: var(--line);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.ask-tool__gear {
+  opacity: 0.55;
+}
+
+/*
+ * Below roughly 1400px the full bar no longer fits beside the sidebar, and a
+ * row clipped mid-word reads as breakage rather than as something scrollable.
+ * The secondary toggles keep their glyph and their tooltip; the groups that
+ * change answers keep their words.
+ */
+@media (max-width: 1400px) {
+  .ask-bar__group--toggles .ask-tool__label {
+    display: none;
+  }
+
+  .ask-bar__group--toggles .ask-tool {
+    padding-inline: 0.5rem;
+  }
+}
+
+.ask-select {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--text-xs);
+  max-width: 11rem;
+}
+
+/* Segmented control: the page's primary state, so it keeps the accent. */
+.ask-modes {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+.ask-modes__btn {
+  border: 0;
+  border-radius: calc(var(--radius-sm) - 2px);
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--text-xs);
+  padding: 0.3rem 0.7rem;
+  white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.ask-modes__btn:hover:not(:disabled):not(.is-active) {
+  color: var(--ink);
+}
+
+.ask-modes__btn.is-active {
+  background: var(--accent);
+  color: var(--bg-deep);
+  font-weight: 600;
+}
+
+:root[data-theme='dark'] .ask-modes__btn.is-active {
+  color: #06090f;
+}
+
+.ask-modes__btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+/* -------------------------------- layout -------------------------------- */
+
+.ask-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .ask-layout {
+    grid-template-columns: 232px minmax(0, 1fr);
+  }
+}
+
+.ask-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/*
+ * One surface for the whole conversation, composer included.
+ *
+ * The height is bounded so the thread scrolls *inside* the card and the
+ * composer stays where it was left. Letting the workspace grow with the
+ * transcript pushes the input below the fold on any real conversation, which
+ * is the same disconnection the sticky footer had, only worse.
+ */
+.ask-workspace {
+  /* Shared reading measure: thread, composer and footer all align to it. */
+  --ask-measure: 42rem;
+  display: flex;
+  flex-direction: column;
+  height: min(74vh, 780px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  overflow: hidden;
 }
 
 .ask-thread {
   flex: 1;
+  /* Without this a flex child refuses to shrink and scrolls the page instead. */
+  min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-4) 2px var(--space-6);
+  padding-block: var(--space-2);
+}
+
+/*
+ * One centred column across all three regions. Padding rather than max-width
+ * keeps the composer and footer full-bleed, so they still read as edges of the
+ * card while their content lines up with the conversation above.
+ */
+.ask-thread,
+.ask-composer,
+.ask-foot,
+.ask-note--inline {
+  padding-inline: max(var(--space-4), calc((100% - var(--ask-measure)) / 2));
 }
 
 /* ------------------------------ empty state ---------------------------- */
@@ -27,26 +266,28 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   padding: var(--space-6) var(--space-4);
 }
 
 .ask-empty__glyph {
-  font-size: 2rem;
-  color: var(--accent);
+  font-size: 1.5rem;
+  color: var(--ink-4);
 }
 
 .ask-empty__title {
+  margin: 0;
   font-family: var(--font-serif);
-  font-size: var(--text-lg);
+  font-size: var(--text-md);
   font-weight: 600;
   color: var(--ink);
 }
 
 .ask-empty__hint {
+  margin: 0;
   font-size: var(--text-sm);
   color: var(--ink-3);
-  max-width: 44ch;
+  max-width: 46ch;
 }
 
 .ask-chips {
@@ -54,43 +295,69 @@
   flex-wrap: wrap;
   gap: var(--space-2);
   justify-content: center;
-  margin-top: var(--space-3);
+  margin-top: var(--space-2);
 }
 
 .ask-chip {
   display: inline-block;
-  padding: 0.4rem 0.8rem;
+  padding: 0.35rem 0.75rem;
   border-radius: var(--radius-full);
   border: 1px solid var(--line);
   background: var(--surface-2);
   color: var(--ink-2);
   font-size: var(--text-sm);
   text-align: start;
-  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
 }
 
 .ask-chip:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-raised);
+  color: var(--ink);
+}
+
+.ask-chip--sm {
+  padding: 0.22rem 0.55rem;
+  font-size: var(--text-xs);
+}
+
+.ask-chip--action {
   border-color: var(--accent-line);
   color: var(--accent-ink);
 }
 
-.ask-chip--sm {
-  padding: 0.28rem 0.6rem;
-  font-size: var(--text-xs);
+.ask-chip--action:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
 }
 
 /* -------------------------------- messages ---------------------------- */
 
+/*
+ * Turns are separated by a hairline rather than each being boxed. Answers are
+ * often several paragraphs with sources; wrapping every one in its own card
+ * produced the "stack of widgets" look and squeezed the prose into a column
+ * far narrower than it needed to be.
+ */
 .ask-msg {
   display: flex;
   gap: var(--space-3);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--line-faint);
   animation: ask-rise var(--dur-base) var(--ease-out);
+}
+
+.ask-thread > .ask-msg:first-child {
+  border-top: 0;
 }
 
 @keyframes ask-rise {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(4px);
   }
 }
 
@@ -102,35 +369,35 @@
   flex: none;
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  background: linear-gradient(150deg, hsl(var(--accent-h) 72% 56%), hsl(calc(var(--accent-h) + 40) 68% 48%));
-  color: #fff;
-  font-size: 0.8rem;
-  margin-top: 2px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--accent-ink);
+  font-size: 0.72rem;
+  margin-top: 3px;
 }
 
-.ask-bubble {
-  max-width: 82%;
-  padding: 0.7rem 0.95rem;
-  border-radius: var(--radius-lg);
+/* The question: compact, quiet, right-aligned — context for the answer. */
+.ask-bubble--user {
+  max-width: 78%;
+  padding: 0.55rem 0.85rem;
+  border-radius: var(--radius-md);
   border: 1px solid var(--line);
-  background: var(--surface);
-  font-size: var(--text-base);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+}
+
+/* The answer: the visual focus. Full column width, document type scale. */
+.ask-answer {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-md);
   line-height: var(--leading-body);
   color: var(--ink);
-}
-
-.ask-bubble--user {
-  border-color: var(--accent-line);
-  background: var(--accent-soft);
-  color: var(--ink);
-  border-bottom-right-radius: var(--radius-sm);
-}
-
-.ask-msg--bot .ask-bubble {
-  border-bottom-left-radius: var(--radius-sm);
 }
 
 .ask-text {
@@ -157,12 +424,12 @@
 .ask-dots {
   display: inline-flex;
   gap: 4px;
-  padding: 0.2rem 0;
+  padding: 0.35rem 0;
 }
 
 .ask-dots span {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--ink-4);
   animation: ask-pulse 1.2s var(--ease-in-out) infinite;
@@ -188,7 +455,27 @@
   }
 }
 
-/* -------------------------------- extras ------------------------------ */
+/* --------------------------- sources and extras ------------------------ */
+
+/* Secondary but reachable: one hairline below the prose, smaller type, and
+   labels that read as metadata rather than as part of the answer. */
+.ask-cites {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-xs);
+  line-height: var(--leading-tight);
+  color: var(--ink-3);
+}
+
+.ask-cites__label,
+.ask-extras__label {
+  color: var(--ink-4);
+  text-transform: uppercase;
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+}
 
 .ask-extras {
   display: flex;
@@ -206,11 +493,6 @@
   gap: var(--space-2);
 }
 
-.ask-extras__label {
-  font-size: var(--text-xs);
-  color: var(--ink-4);
-}
-
 .ask-source {
   font-size: var(--text-xs);
   color: var(--accent-ink);
@@ -218,22 +500,49 @@
   text-underline-offset: 2px;
 }
 
-/* --------------------------------- input ----------------------------- */
+.ask-note {
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--caution);
+}
 
-.ask-input {
-  position: sticky;
-  bottom: 0;
+.ask-note--ok {
+  color: var(--success);
+}
+
+.ask-note--inline {
+  margin: 0;
+  padding-block: 0 var(--space-2);
+}
+
+/* ------------------------------- composer ------------------------------- */
+
+/*
+ * Part of the workspace, not a floating footer: it sits on the container's
+ * own edge, separated by a hairline, so the conversation and the place you
+ * continue it read as one surface.
+ */
+.ask-composer {
   display: flex;
   gap: var(--space-2);
   align-items: flex-end;
-  padding: var(--space-3) 0;
-  background: linear-gradient(to top, var(--bg) 70%, transparent);
+  padding-block: var(--space-3);
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
 }
 
-.ask-input .textarea {
-  min-height: 44px;
-  max-height: 160px;
+.ask-composer__input {
+  flex: 1;
+  min-height: 42px;
+  max-height: 168px;
   resize: none;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  line-height: var(--leading-body);
+}
+
+.ask-composer__send {
+  flex: none;
 }
 
 .ask-foot {
@@ -241,63 +550,30 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding-bottom: var(--space-3);
-}
-
-@media (max-width: 640px) {
-  .ask-bubble {
-    max-width: 88%;
-  }
-}
-
-/* -------------------------- AI mode + settings -------------------------- */
-
-.ask-modebar {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: var(--space-2);
-}
-
-.ask-mode {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.3rem 0.7rem;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--line);
+  padding-block: var(--space-2);
+  border-top: 1px solid var(--line-faint);
   background: var(--surface-2);
-  color: var(--ink-3);
+}
+
+.ask-foot__hint {
   font-size: var(--text-xs);
+  color: var(--ink-3);
 }
 
-.ask-mode:hover {
-  border-color: var(--line-strong);
-  color: var(--ink);
-}
+/* ---------------------------- settings panels --------------------------- */
 
-.ask-mode--ai {
-  border-color: var(--accent-line);
-  background: var(--accent-soft);
-  color: var(--accent-ink);
+.ask-panel__title {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
   font-weight: 600;
-}
-
-.ask-mode__gear {
-  opacity: 0.6;
+  color: var(--ink-2);
 }
 
 .ask-settingspanel {
-  margin-bottom: var(--space-4);
   padding: var(--space-4);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: var(--surface);
-}
-
-.ask-note {
-  margin-top: var(--space-2);
-  font-size: var(--text-xs);
-  color: var(--caution);
 }
 
 .ai-settings {
@@ -317,6 +593,19 @@
   flex: 1;
   font-family: var(--font-mono);
   font-size: var(--text-xs);
+}
+
+@media (max-width: 640px) {
+  .ask-bubble--user {
+    max-width: 88%;
+  }
+
+  .ask-thread,
+  .ask-composer,
+  .ask-foot,
+  .ask-note--inline {
+    padding-inline: var(--space-3);
+  }
 }
 
 /* ------------------------- editor AI toolbar item ---------------------- */
@@ -349,29 +638,22 @@
 
 /* ---------------------- multi-chat layout + rail ---------------------- */
 
-.ask-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-4);
-}
-
-@media (min-width: 900px) {
-  .ask-layout {
-    grid-template-columns: 240px minmax(0, 1fr);
-  }
-}
-
-.ask-main {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
 .ask-rail {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+@media (min-width: 900px) {
+  /* Same height as the workspace, so the two columns align top and bottom
+     rather than leaving one stranded in empty space. */
+  .ask-rail {
+    height: min(74vh, 780px);
+  }
 }
 
 .ask-rail__new {
@@ -384,8 +666,9 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  max-height: 60vh;
+  gap: 1px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -394,11 +677,19 @@
   align-items: center;
   gap: 2px;
   border-radius: var(--radius-sm);
-  padding: 2px 4px;
+  padding: 1px 2px;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.ask-rail__item:hover {
+  background: var(--surface-2);
 }
 
 .ask-rail__item.is-active {
-  background: var(--surface-raised);
+  background: var(--surface-2);
+  color: var(--ink);
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 .ask-rail__title {
@@ -437,7 +728,9 @@
     width: min(80vw, 300px);
     padding: var(--space-4);
     background: var(--surface);
+    border: 0;
     border-right: 1px solid var(--line);
+    border-radius: 0;
     transform: translateX(-105%);
     transition: transform 0.2s ease;
   }
@@ -462,10 +755,6 @@
 }
 .ask-remember:hover {
   opacity: 1;
-}
-
-.ask-note--ok {
-  color: var(--success);
 }
 
 /* ---------------------- memory panel ---------------------- */
@@ -499,33 +788,28 @@
 
 /* ---------------------- socratic mode + reasoning map ---------------------- */
 
-.ask-mode--socratic {
-  border-color: var(--accent);
-  color: var(--accent-ink);
-}
-
 .ask-socratic-note {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-2);
-  margin-bottom: var(--space-3);
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--line);
-  border-left: 3px solid var(--accent);
+  border-left: 2px solid var(--accent);
   border-radius: var(--radius-sm);
-  background: var(--surface-raised);
+  background: var(--surface);
   font-size: var(--text-sm);
+  color: var(--ink-2);
 }
 
 .ask-socratic-note span {
-  color: var(--ink-muted);
+  color: var(--ink-3);
   max-width: 62ch;
 }
 
 @media (min-width: 1200px) {
   .ask-layout--map {
-    grid-template-columns: 220px minmax(0, 1fr) 280px;
+    grid-template-columns: 232px minmax(0, 1fr) 288px;
   }
 }
 
@@ -537,7 +821,7 @@
   padding: var(--space-3);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  background: var(--surface-raised);
+  background: var(--surface);
   font-size: var(--text-sm);
   align-self: start;
   max-height: 70vh;
@@ -658,35 +942,6 @@
 
 /* ---------------------- assistant modes + teach + inspector ---------------------- */
 
-.ask-modes {
-  display: inline-flex;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-}
-
-.ask-modes__btn {
-  background: none;
-  border: 0;
-  border-right: 1px solid var(--line);
-  color: var(--ink-muted);
-  cursor: pointer;
-  font: inherit;
-  font-size: var(--text-xs);
-  padding: 0.35rem 0.6rem;
-}
-.ask-modes__btn:last-child {
-  border-right: 0;
-}
-.ask-modes__btn.is-active {
-  background: var(--accent);
-  color: var(--accent-contrast, #fff);
-}
-.ask-modes__btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
 .teach {
   display: flex;
   flex-direction: column;
@@ -732,11 +987,10 @@
 /* ------------------------------ inspector ------------------------------ */
 
 .dbg {
-  margin-top: var(--space-3);
   padding: var(--space-3);
-  border: 1px dashed var(--line);
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  background: var(--surface-raised);
+  background: var(--surface);
   font-size: var(--text-xs);
   max-height: 45vh;
   overflow-y: auto;
@@ -989,10 +1243,6 @@
   font-size: var(--text-xs);
   color: var(--ink-muted);
   white-space: nowrap;
-}
-
-.ask-bookmode {
-  max-width: 12rem;
 }
 
 .dbg__books {
